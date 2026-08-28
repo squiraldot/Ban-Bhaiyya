@@ -111,3 +111,21 @@ Warnings are stored in:
 The file is created automatically after the first warning.
 
 Do not commit your bot token or `warnings.json` to a public Git repository.
+
+
+## Separate filtered-word file
+
+All filtered words are now in `abusive_words.txt`.
+
+Add one word or phrase per line, for example:
+
+```text
+word1
+word2
+multi word phrase
+```
+
+Do not add commas or Python quotes. Empty lines are ignored.
+
+The list is loaded when the bot starts. After changing `abusive_words.txt`,
+restart the bot (`Ctrl+C`, then `python banbhai_bot.py`) to load the changes.

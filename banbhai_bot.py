@@ -18,7 +18,7 @@ from telegram.ext import (
 # CONFIG
 # ============================================================
 
-TOKEN = os.getenv("BOT_TOKEN", "8870053082:AAHsNdGpbYsWlhjPEIsSbwL1T5NqTE_Jgt8")
+TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 
 # Warnings are counted separately for every user in every chat.
 MAX_WARNINGS = 3
@@ -45,36 +45,26 @@ logger = logging.getLogger("BanBhai")
 # ABUSIVE WORDS
 # ============================================================
 
-ABUSIVE_WORDS = [
-    # Hinglish / Hindi
-    "bakchod", "bakchodi",
-    "chutiya", "chutiye", "chutiyapa",
-    "gandu", "gaand", "gand",
-    "harami", "haraami",
-    "kamina", "kamine", "kaminey",
-    "kutte", "kutta", "kutiya",
-    "madarchod", "behenchod",
-    "bhosdike", "bhosdi", "bhosda",
-    "randi", "randwa",
-    "lauda", "loda", "lund", "lavde", "lavda",
-    "jhatu", "jhaatu",
-    "nalayak",
-    "saala", "sala", "saali", "sali",
-    "ullu",
-
-    # English
-    "fuck", "fucking", "fucker", "motherfucker",
-    "shit", "bullshit",
-    "bitch", "bastard",
-    "asshole", "dumbass", "dumbfuck",
-]
-
-# Sort longer words first so "motherfucker" is checked before "fuck".
-ABUSIVE_WORDS = sorted(
-    set(ABUSIVE_WORDS),
-    key=len,
-    reverse=True,
+ABUSIVE_WORDS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "abusive_words.txt",
 )
+
+
+def load_abusive_words() -> list[str]:
+    """Load filtered words from abusive_words.txt, one entry per line."""
+    try:
+        with open(ABUSIVE_WORDS_FILE, "r", encoding="utf-8") as file:
+            words = [line.strip() for line in file if line.strip()]
+    except OSError as error:
+        raise RuntimeError(
+            f"Could not load abusive words file: {ABUSIVE_WORDS_FILE}"
+        ) from error
+
+    return sorted(set(words), key=len, reverse=True)
+
+
+ABUSIVE_WORDS = load_abusive_words()
 
 # ============================================================
 # WARNING STORAGE
