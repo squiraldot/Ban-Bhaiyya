@@ -25,8 +25,8 @@ MAX_WARNINGS = 3
 
 # Temporary mute durations for warning 1 and 2.
 MUTE_MINUTES = {
-    1: 2,
-    2: 5,
+    1: 2, # 2 is a time for muting the user (2 minutes)
+    2: 5, # 5 is a time for muting the user (5 minutes)
 }
 
 DATA_FILE = "warnings.json"
