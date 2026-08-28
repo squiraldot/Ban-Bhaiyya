@@ -39,7 +39,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     level=logging.INFO,
 )
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostie")
 
 # ============================================================
 # ABUSIVE WORDS
@@ -260,7 +260,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     await update.effective_message.reply_text(
-        "👋 BanBhai online hai!\n"
+        "Ghostie is alive👻...!\n"
         "Group moderation is active."
     )
 
@@ -400,7 +400,7 @@ def main() -> None:
 
     app.add_error_handler(error_handler)
 
-    logger.info("BanBhai is running...")
+    logger.info("Ghostie is running...")
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
     )
