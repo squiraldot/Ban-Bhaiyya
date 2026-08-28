@@ -1,4 +1,4 @@
-# BanBhai — Fixed Telegram Moderation Bot
+# Ghostie👻 — Telegram Moderation Bot
 
 ## What was fixed
 
