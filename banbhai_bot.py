@@ -18,7 +18,7 @@ from telegram.ext import (
 # CONFIG
 # ============================================================
 
-TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
+TOKEN = os.getenv("BOT_TOKEN", "8870053082:AAHsNdGpbYsWlhjPEIsSbwL1T5NqTE_Jgt8")
 
 # Warnings are counted separately for every user in every chat.
 MAX_WARNINGS = 3
