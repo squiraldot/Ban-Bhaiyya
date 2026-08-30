@@ -6,4 +6,4 @@ def setup_logging() -> logging.Logger:
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         level=logging.INFO,
     )
-    return logging.getLogger("BanBhai")
+    return logging.getLogger("Ghostea")
