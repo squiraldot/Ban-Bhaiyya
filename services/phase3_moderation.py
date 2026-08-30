@@ -1,4 +1,4 @@
-from banbhai.services.telegram_service import muted_permissions
+from ghostea.services.telegram_service import muted_permissions
 from datetime import datetime, timedelta, timezone
 
 
