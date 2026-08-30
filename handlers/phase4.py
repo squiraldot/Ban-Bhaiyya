@@ -4,17 +4,17 @@ from datetime import datetime, timedelta, timezone
 from telegram import ChatPermissions, Update
 from telegram.ext import ContextTypes
 
-from banbhai.config import (
+from ghostea.config import (
     ANTIRAID_ENABLED_DEFAULT,
     ANTIRAID_JOIN_LIMIT,
     ANTIRAID_LOCK_MINUTES,
     ANTIRAID_WINDOW_SECONDS,
     WELCOME_ENABLED_DEFAULT,
 )
-from banbhai.services.telegram_service import is_admin
-from banbhai.utils import display_name
+from ghostea.services.telegram_service import is_admin
+from ghostea.utils import display_name
 
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostea")
 
 
 async def handle_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,7 +27,7 @@ async def handle_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
     protection = context.application.bot_data["protection"]
     settings = await store.get_settings(chat.id)
 
-    from banbhai.handlers.phase5 import verification_for_member
+    from ghostea.handlers.phase5 import verification_for_member
 
     for member in message.new_chat_members:
         # Ignore bots joining; this avoids bot-to-bot join bursts.
@@ -146,7 +146,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     store = context.application.bot_data["phase3_store"]
     stats = await store.get_stats(update.effective_chat.id)
     await update.effective_message.reply_text(
-        "📊 BanBhai Statistics\n\n"
+        "📊 Ghostea Statistics\n\n"
         f"Members joined: {stats['joins']}\n"
         f"Warnings: {stats['warnings']}\n"
         f"Moderation actions: {stats['actions']}"
