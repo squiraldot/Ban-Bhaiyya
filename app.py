@@ -1,6 +1,6 @@
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from banbhai.config import (
+from ghostea.config import (
     BLOCKED_DOMAINS_FILE,
     BLOCKED_LINK_ACTION,
     DATA_FILE,
@@ -13,28 +13,28 @@ from banbhai.config import (
     SUPABASE_URL,
     TOKEN,
 )
-from banbhai.filters.line_loader import LineList
-from banbhai.filters.loader import AbuseFilter
-from banbhai.handlers.common import (
+from ghostea.filters.line_loader import LineList
+from ghostea.filters.loader import AbuseFilter
+from ghostea.handlers.common import (
     history_command,
     settings_command,
     start_command,
     warnings_command,
 )
-from banbhai.handlers.messages import check_message
-from banbhai.handlers.phase4 import (
+from ghostea.handlers.messages import check_message
+from ghostea.handlers.phase4 import (
     handle_new_members,
     raidmode_command,
     setraid_command,
     stats_command,
     welcome_command,
 )
-from banbhai.handlers.moderation import (
+from ghostea.handlers.moderation import (
     ban_command, mute_command, reloadfilters_command,
     resetwarnings_command, unban_command, unmute_command,
     unwarn_command, warn_command
 )
-from banbhai.handlers.settings import (
+from ghostea.handlers.settings import (
     addfilter_command,
     delfilter_command,
     filters_command,
@@ -47,24 +47,24 @@ from banbhai.handlers.settings import (
     setwarnlimit_command,
     toggle_command,
 )
-from banbhai.handlers.phase5 import (
+from ghostea.handlers.phase5 import (
     reputation_command,
     setmaxmsg_command,
     setverification_command,
     verification_command,
     verify_callback,
 )
-from banbhai.handlers.phase6 import (
+from ghostea.handlers.phase6 import (
     analytics_command,
     export_command,
     health_command,
 )
-from banbhai.logging_config import setup_logging
-from banbhai.services.phase3_moderation import Phase3ModerationService
-from banbhai.services.analytics_service import AnalyticsService
-from banbhai.services.protection_service import ProtectionService
-from banbhai.storage.database import SupabaseREST
-from banbhai.storage.phase3_store import Phase3Store
+from ghostea.logging_config import setup_logging
+from ghostea.services.phase3_moderation import Phase3ModerationService
+from ghostea.services.analytics_service import AnalyticsService
+from ghostea.services.protection_service import ProtectionService
+from ghostea.storage.database import SupabaseREST
+from ghostea.storage.phase3_store import Phase3Store
 
 
 def create_application():
@@ -95,7 +95,7 @@ def create_application():
     moderation = Phase3ModerationService(store)
     analytics = AnalyticsService(store)
 
-    from banbhai.services.verification_service import VerificationService
+    from ghostea.services.verification_service import VerificationService
     verification = VerificationService(store)
 
     app = Application.builder().token(TOKEN).build()
@@ -172,7 +172,7 @@ def create_application():
     )
 
     async def post_init(application):
-        from banbhai.storage.migration import migrate_json_if_needed
+        from ghostea.storage.migration import migrate_json_if_needed
         try:
             count = await migrate_json_if_needed(store, DATA_FILE)
             if count:
