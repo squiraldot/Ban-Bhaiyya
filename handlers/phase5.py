@@ -4,15 +4,15 @@ from datetime import datetime, timedelta, timezone
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from banbhai.config import (
+from ghostea.config import (
     MAX_MESSAGE_LENGTH_DEFAULT,
     VERIFICATION_ENABLED_DEFAULT,
     VERIFICATION_TIMEOUT_SECONDS,
 )
-from banbhai.services.telegram_service import is_admin
-from banbhai.utils import display_name
+from ghostea.services.telegram_service import is_admin
+from ghostea.utils import display_name
 
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostea")
 
 
 async def reputation_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
