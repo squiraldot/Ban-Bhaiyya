@@ -4,10 +4,10 @@ import logging
 from telegram import InputFile, Update
 from telegram.ext import ContextTypes
 
-from banbhai.services.export_service import to_csv, to_json
-from banbhai.services.telegram_service import is_admin
+from ghostea.services.export_service import to_csv, to_json
+from ghostea.services.telegram_service import is_admin
 
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostea")
 
 
 async def analytics_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -26,7 +26,7 @@ async def analytics_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     lines = [
-        "📊 BanBhai Analytics",
+        "📊 Ghostea Analytics",
         "",
         f"Period: {report['days']} day(s)",
         f"👋 Joins: {report['joins']}",
@@ -61,14 +61,14 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if fmt == "json":
         content = to_json(report)
-        filename = f"banbhai-analytics-{days}d.json"
+        filename = f"ghostea-analytics-{days}d.json"
     else:
         content = to_csv(report)
-        filename = f"banbhai-analytics-{days}d.csv"
+        filename = f"ghostea-analytics-{days}d.csv"
 
     await update.effective_message.reply_document(
         document=InputFile(io.BytesIO(content), filename=filename),
-        caption=f"📦 BanBhai analytics export ({days} days).",
+        caption=f"📦 Ghostea analytics export ({days} days).",
     )
 
 
@@ -104,7 +104,7 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         checks.append("❌ Telegram API")
 
     await update.effective_message.reply_text(
-        "🏥 BanBhai Health\n\n" + "\n".join(checks)
+        "🏥 Ghostea Health\n\n" + "\n".join(checks)
     )
 
 
