@@ -43,7 +43,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path == "/health":
             return _json(self, 200, {
                 "ok": True,
-                "service": "banbhai",
+                "service": "ghostea",
                 "bot": "polling",
             })
 
@@ -68,7 +68,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 rows = asyncio.run(self.store._call(
                     self.store.db.select,
-                    "banbhai_group_settings",
+                    "ghostea_group_settings",
                     {"select": "*", "order": "updated_at.desc", "limit": "200"},
                 ))
                 return _json(self, 200, {"groups": rows})
@@ -149,7 +149,7 @@ def start_web_server(store, analytics, bot):
     server = ThreadingHTTPServer(("0.0.0.0", port), DashboardHandler)
     thread = threading.Thread(
         target=server.serve_forever,
-        name="banbhai-web",
+        name="ghostea-web",
         daemon=True,
     )
     thread.start()
