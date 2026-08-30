@@ -4,10 +4,10 @@ import re
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from banbhai.config import MAX_WARNINGS
-from banbhai.services.telegram_service import is_admin, mute_member
+from ghostea.config import MAX_WARNINGS
+from ghostea.services.telegram_service import is_admin, mute_member
 
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostea")
 
 
 def display_name(user):
