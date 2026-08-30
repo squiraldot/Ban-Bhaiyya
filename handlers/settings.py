@@ -3,10 +3,10 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from banbhai.services.telegram_service import is_admin
-from banbhai.utils import target_from_update, display_name
+from ghostea.services.telegram_service import is_admin
+from ghostea.utils import target_from_update, display_name
 
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostea")
 
 
 async def _admin(update):
