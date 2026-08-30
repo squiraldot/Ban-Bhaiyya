@@ -3,12 +3,12 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from banbhai.config import DEFAULT_MAX_WARNINGS
-from banbhai.handlers.common import require_admin, target_from_update
-from banbhai.services.telegram_service import ban_member, mute_member, unban_member, unmute_member, is_admin
-from banbhai.utils import display_name
+from ghostea.config import DEFAULT_MAX_WARNINGS
+from ghostea.handlers.common import require_admin, target_from_update
+from ghostea.services.telegram_service import ban_member, mute_member, unban_member, unmute_member, is_admin
+from ghostea.utils import display_name
 
-logger = logging.getLogger("BanBhai")
+logger = logging.getLogger("Ghostea")
 
 
 async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
