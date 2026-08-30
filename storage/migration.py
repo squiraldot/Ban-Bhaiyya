@@ -37,7 +37,7 @@ async def migrate_json_if_needed(store, json_path: Path):
                 # Upsert the exact old count without inventing warning history.
                 await store._call(
                     store.db.upsert,
-                    "banbhai_warnings",
+                    "ghostea_warnings",
                     {
                         "chat_id": int(chat_id),
                         "user_id": int(user_id),
