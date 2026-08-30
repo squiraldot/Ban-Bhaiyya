@@ -1,131 +1,103 @@
-# Ghostea👻 — Telegram Moderation Bot
+# Ghostea 👻
 
-## What was fixed
+Production-ready Telegram moderation bot built with Python and `python-telegram-bot`.
 
-1. **Permanent ban was not actually a ban**
-   - The old code called `restrict_member()` for the third warning.
-   - This version calls `ban_member()` on the third warning.
+## Architecture
 
-2. **Warnings were global**
-   - The old code stored warnings only by `user_id`.
-   - A user's warning count could therefore carry from one group to another.
-   - This version stores warnings as `chat_id -> user_id -> count`.
-
-3. **Mute permissions were incomplete**
-   - The old code only disabled `can_send_messages`.
-   - This version explicitly disables the normal message/media permissions.
-
-4. **UTC-aware mute expiry**
-   - Uses timezone-aware UTC datetimes instead of a naive local datetime.
-
-5. **Media captions are checked**
-   - Abuse in photo/video/document captions is now moderated too.
-
-6. **Admin protection**
-   - Group admins and the owner are ignored.
-
-7. **Safer warning storage**
-   - JSON writes use a temporary file and `os.replace()`.
-
-8. **Better logging**
-   - Telegram/API failures are printed with useful error details.
-
-9. **Bot receives all update types**
-   - `allowed_updates=Update.ALL_TYPES` is enabled.
-
-10. **`/warnings` command**
-   - Users can check their own warning count.
-
-## Telegram setup — IMPORTANT
-
-The code alone is not enough. Telegram permissions/settings can make a correct bot look broken.
-
-### 1. Disable Privacy Mode
-
-In **@BotFather**:
-
-`/mybots` → select your bot → `Bot Settings` → `Group Privacy` → `Turn off`
-
-The bot needs to receive ordinary group messages so it can inspect them.
-
-### 2. Make the bot an administrator
-
-Add the bot to the group and give it at least:
-
-- Delete Messages
-- Restrict Members
-
-For the third warning it also needs permission to ban members.
-
-### 3. Use a supergroup
-
-For reliable moderation, use a Telegram supergroup.
-
-### 4. Configure the token
-
-Recommended:
-
-```bash
-export BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
-python ghostea_bot.py
+```text
+GitHub → Render (Ghostea bot + /health + admin API)
+             ↓
+          Supabase
+             ↑
+Vercel → Admin Dashboard
+             ↑
+        UptimeRobot
 ```
 
-Or replace:
-
-```python
-TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
-```
-
-with your token.
-
-### 5. Install dependencies
+## Local Android/Termux test
 
 ```bash
 pip install -r requirements.txt
+
+export BOT_TOKEN="YOUR_BOT_TOKEN"
+export SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+export SUPABASE_KEY="YOUR_SERVER_SIDE_SUPABASE_KEY"
+export DASHBOARD_API_KEY="YOUR_RANDOM_LONG_SECRET"
+export DASHBOARD_ORIGIN="http://localhost:3000"
+
+python main.py
 ```
 
-## Warning behavior
+Do not commit `.env`, bot tokens, Supabase server keys, or `data/warnings.json`.
 
-- 1st abusive message → delete + 2 minute mute
-- 2nd abusive message → delete + 5 minute mute
-- 3rd abusive message → delete + permanent Telegram ban
+## Telegram permissions
 
-Warnings do **not** reset automatically.
+Add Ghostea as an administrator with:
 
-## Important detection note
+- Delete Messages
+- Restrict Members
+- Ban Users
 
-The detector catches common punctuation/spacing evasion such as:
+Disable Group Privacy in BotFather.
 
-- `c.h.u.t.i.y.a`
-- `c-h-u-t-i-y-a`
-- `c h u t i y a`
+## Supabase
 
-It intentionally avoids aggressive matching for very short words because substring detection can create false positives.
+Run `database.sql` once in Supabase SQL Editor.
 
-## Data
+## Render
 
-Warnings are stored in:
-
-`warnings.json`
-
-The file is created automatically after the first warning.
-
-Do not commit your bot token or `warnings.json` to a public Git repository.
-
-
-## Separate filtered-word file
-
-All filtered words are now in `abusive_words.txt`.
-
-Add one word or phrase per line, for example:
+Use:
 
 ```text
-word1
-word2
-multi word phrase
+Build: pip install -r requirements.txt
+Start: python main.py
+Health: /health
 ```
 
-Do not add commas or Python quotes. Empty lines are ignored.
+Render supplies `PORT` automatically.
 
-The list is loaded when the bot starts. After changing `abusive_words.txt`,
-restart the bot (`Ctrl+C`, then `python ghostea_bot.py`) to load the changes.
+Required environment variables:
+
+```text
+BOT_TOKEN
+SUPABASE_URL
+SUPABASE_KEY
+DASHBOARD_API_KEY
+DASHBOARD_ORIGIN
+```
+
+## UptimeRobot
+
+Monitor:
+
+```text
+https://YOUR-RENDER-SERVICE.onrender.com/health
+```
+
+UptimeRobot monitors the service; it is not the process that hosts the bot.
+
+## Main moderation flow
+
+- abusive message → delete + warning
+- warning 1 → configured mute (default 2 min)
+- warning 2 → configured mute (default 5 min)
+- warning 3 → real permanent Telegram ban
+- admins/owners are excluded from automatic moderation
+
+## Filter files
+
+```text
+ghostea/filters/abusive_words.txt
+ghostea/filters/spam_patterns.txt
+ghostea/filters/blocked_domains.txt
+```
+
+One entry per line. Use `/reloadfilters` after editing files on a running instance.
+
+## Phase 4–6
+
+Includes welcome, anti-raid, group settings, verification gate, repeated-message/mention protection, reputation, analytics, CSV/JSON export, health API, and persistent moderation data.
+
+## Important
+
+The Vercel dashboard should never receive `SUPABASE_KEY`. It should call Ghostea's authenticated API using the dashboard API secret through a secure server-side/proxy setup.

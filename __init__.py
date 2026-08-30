@@ -1,1 +1,1 @@
-"""Ghostea Telegram moderation bot."""
+# Ghostea project root.

@@ -1,0 +1,2 @@
+# One regex per line. Keep this file conservative to reduce false positives.
+(?i)\b(?:free\s+money|earn\s+money\s+fast|click\s+here)\b\n
