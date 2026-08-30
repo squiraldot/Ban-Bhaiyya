@@ -1,4 +1,4 @@
-from banbhai.config import MAX_WARNINGS, MUTE_MINUTES
+from ghostea.config import MAX_WARNINGS, MUTE_MINUTES
 
 
 class ModerationService:
@@ -40,7 +40,7 @@ class ModerationService:
 
     @staticmethod
     def _muted_permissions():
-        from banbhai.services.telegram_service import muted_permissions
+        from ghostea.services.telegram_service import muted_permissions
         return muted_permissions()
 
     def remove_warning(self, chat_id: int, user_id: int) -> int:
