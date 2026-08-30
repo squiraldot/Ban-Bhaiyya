@@ -1,1 +1,1 @@
-"""BanBhai Telegram moderation bot."""
+"""Ghostea Telegram moderation bot."""
