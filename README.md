@@ -1,4 +1,4 @@
-# Ghostie👻 — Telegram Moderation Bot
+# Ghostea👻 — Telegram Moderation Bot
 
 ## What was fixed
 
@@ -67,7 +67,7 @@ Recommended:
 
 ```bash
 export BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
-python banbhai_bot.py
+python ghostea_bot.py
 ```
 
 Or replace:
@@ -128,4 +128,4 @@ multi word phrase
 Do not add commas or Python quotes. Empty lines are ignored.
 
 The list is loaded when the bot starts. After changing `abusive_words.txt`,
-restart the bot (`Ctrl+C`, then `python banbhai_bot.py`) to load the changes.
+restart the bot (`Ctrl+C`, then `python ghostea_bot.py`) to load the changes.
