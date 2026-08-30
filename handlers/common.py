@@ -1,9 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from banbhai.config import MAX_WARNINGS
-from banbhai.services.telegram_service import is_admin
-from banbhai.utils import display_name, get_target_user
+from ghostea.config import MAX_WARNINGS
+from ghostea.services.telegram_service import is_admin
+from ghostea.utils import display_name, get_target_user
 
 
 async def require_admin(update: Update) -> bool:
@@ -53,7 +53,7 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(
-        "👋 BanBhai online hai!\n"
+        "Ghostea👻 is online!\n"
         "Phase 1 moderation is active."
     )
 
@@ -62,7 +62,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or update.effective_chat.type not in ("group", "supergroup"):
         return
 
-    from banbhai.services.telegram_service import is_admin
+    from ghostea.services.telegram_service import is_admin
     if not await is_admin(update.effective_chat, update.effective_user.id):
         return
 
@@ -70,7 +70,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     s = await store.get_settings(update.effective_chat.id)
 
     await update.effective_message.reply_text(
-        "⚙️ BanBhai Settings\n\n"
+        "⚙️ Ghostea Settings\n\n"
         f"Warnings: {s['max_warnings']}\n"
         f"1st mute: {s['mute1_minutes']} min\n"
         f"2nd mute: {s['mute2_minutes']} min\n"
