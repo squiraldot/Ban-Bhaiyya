@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 
-from banbhai.config import (
+from ghostea.config import (
     DEFAULT_BLOCKED_LINK_ACTION,
     DEFAULT_MAX_WARNINGS,
     DEFAULT_MUTE_MINUTES,
@@ -23,7 +23,7 @@ class Phase3Store:
     async def get_settings(self, chat_id):
         rows = await self._call(
             self.db.select,
-            "banbhai_group_settings",
+            "ghostea_group_settings",
             {"chat_id": f"eq.{chat_id}", "limit": "1"},
         )
 
@@ -62,7 +62,7 @@ class Phase3Store:
             "cleanup_max_age_days": 30,
         }
 
-        await self._call(self.db.upsert, "banbhai_group_settings", defaults)
+        await self._call(self.db.upsert, "ghostea_group_settings", defaults)
         return defaults
 
     async def update_settings(self, chat_id, changes):
@@ -70,7 +70,7 @@ class Phase3Store:
         changes["updated_at"] = datetime.now(timezone.utc).isoformat()
         rows = await self._call(
             self.db.update,
-            "banbhai_group_settings",
+            "ghostea_group_settings",
             changes,
             {"chat_id": f"eq.{chat_id}"},
         )
@@ -79,7 +79,7 @@ class Phase3Store:
     async def get_warning_count(self, chat_id, user_id):
         rows = await self._call(
             self.db.select,
-            "banbhai_warnings",
+            "ghostea_warnings",
             {
                 "chat_id": f"eq.{chat_id}",
                 "user_id": f"eq.{user_id}",
@@ -93,12 +93,12 @@ class Phase3Store:
 
         await self._call(
             self.db.upsert,
-            "banbhai_warnings",
+            "ghostea_warnings",
             {"chat_id": chat_id, "user_id": user_id, "count": count},
         )
         await self._call(
             self.db.insert,
-            "banbhai_warning_history",
+            "ghostea_warning_history",
             {
                 "chat_id": chat_id,
                 "user_id": user_id,
@@ -116,7 +116,7 @@ class Phase3Store:
         count = max(0, await self.get_warning_count(chat_id, user_id) - 1)
         await self._call(
             self.db.upsert,
-            "banbhai_warnings",
+            "ghostea_warnings",
             {"chat_id": chat_id, "user_id": user_id, "count": count},
         )
         return count
@@ -124,7 +124,7 @@ class Phase3Store:
     async def reset_warnings(self, chat_id, user_id):
         await self._call(
             self.db.upsert,
-            "banbhai_warnings",
+            "ghostea_warnings",
             {"chat_id": chat_id, "user_id": user_id, "count": 0},
         )
         await self.log(chat_id, user_id, "RESET_WARNINGS", "Admin reset", "")
@@ -132,7 +132,7 @@ class Phase3Store:
     async def get_history(self, chat_id, user_id, limit=10):
         return await self._call(
             self.db.select,
-            "banbhai_warning_history",
+            "ghostea_warning_history",
             {
                 "chat_id": f"eq.{chat_id}",
                 "user_id": f"eq.{user_id}",
@@ -144,7 +144,7 @@ class Phase3Store:
     async def add_custom_filter(self, chat_id, filter_type, value):
         return await self._call(
             self.db.upsert,
-            "banbhai_custom_filters",
+            "ghostea_custom_filters",
             {
                 "chat_id": chat_id,
                 "filter_type": filter_type,
@@ -156,7 +156,7 @@ class Phase3Store:
     async def remove_custom_filter(self, chat_id, filter_type, value):
         return await self._call(
             self.db.delete,
-            "banbhai_custom_filters",
+            "ghostea_custom_filters",
             {
                 "chat_id": f"eq.{chat_id}",
                 "filter_type": f"eq.{filter_type}",
@@ -175,14 +175,14 @@ class Phase3Store:
 
         return await self._call(
             self.db.select,
-            "banbhai_custom_filters",
+            "ghostea_custom_filters",
             query,
         )
 
     async def log(self, chat_id, user_id, action, reason="", details=""):
         return await self._call(
             self.db.insert,
-            "banbhai_moderation_logs",
+            "ghostea_moderation_logs",
             {
                 "chat_id": chat_id,
                 "user_id": user_id,
@@ -195,7 +195,7 @@ class Phase3Store:
     async def recent_logs(self, chat_id, limit=20):
         return await self._call(
             self.db.select,
-            "banbhai_moderation_logs",
+            "ghostea_moderation_logs",
             {
                 "chat_id": f"eq.{chat_id}",
                 "order": "created_at.desc",
@@ -206,31 +206,31 @@ class Phase3Store:
     async def record_join(self, chat_id, user_id):
         return await self._call(
             self.db.insert,
-            "banbhai_join_events",
+            "ghostea_join_events",
             {"chat_id": chat_id, "user_id": user_id},
         )
 
     async def log_raid_event(self, chat_id, action, details=""):
         return await self._call(
             self.db.insert,
-            "banbhai_raid_events",
+            "ghostea_raid_events",
             {"chat_id": chat_id, "action": action, "details": details},
         )
 
     async def get_stats(self, chat_id):
         warnings = await self._call(
             self.db.select,
-            "banbhai_warning_history",
+            "ghostea_warning_history",
             {"chat_id": f"eq.{chat_id}", "select": "id", "limit": "1000"},
         )
         actions = await self._call(
             self.db.select,
-            "banbhai_moderation_logs",
+            "ghostea_moderation_logs",
             {"chat_id": f"eq.{chat_id}", "select": "id", "limit": "1000"},
         )
         joins = await self._call(
             self.db.select,
-            "banbhai_join_events",
+            "ghostea_join_events",
             {"chat_id": f"eq.{chat_id}", "select": "id", "limit": "1000"},
         )
         return {"warnings": len(warnings), "actions": len(actions), "joins": len(joins)}
@@ -239,7 +239,7 @@ class Phase3Store:
     async def save_verification(self, chat_id, user_id, token, expires_at):
         return await self._call(
             self.db.upsert,
-            "banbhai_verifications",
+            "ghostea_verifications",
             {
                 "chat_id": chat_id,
                 "user_id": user_id,
@@ -252,7 +252,7 @@ class Phase3Store:
     async def get_verification(self, chat_id, user_id):
         rows = await self._call(
             self.db.select,
-            "banbhai_verifications",
+            "ghostea_verifications",
             {
                 "chat_id": f"eq.{chat_id}",
                 "user_id": f"eq.{user_id}",
@@ -264,7 +264,7 @@ class Phase3Store:
     async def verify_user(self, chat_id, user_id):
         return await self._call(
             self.db.update,
-            "banbhai_verifications",
+            "ghostea_verifications",
             {"verified": True},
             {"chat_id": f"eq.{chat_id}", "user_id": f"eq.{user_id}"},
         )
@@ -272,7 +272,7 @@ class Phase3Store:
     async def delete_verification(self, chat_id, user_id):
         return await self._call(
             self.db.delete,
-            "banbhai_verifications",
+            "ghostea_verifications",
             {
                 "chat_id": f"eq.{chat_id}",
                 "user_id": f"eq.{user_id}",
@@ -282,7 +282,7 @@ class Phase3Store:
     async def get_reputation(self, chat_id, user_id):
         rows = await self._call(
             self.db.select,
-            "banbhai_reputation",
+            "ghostea_reputation",
             {
                 "chat_id": f"eq.{chat_id}",
                 "user_id": f"eq.{user_id}",
@@ -298,7 +298,7 @@ class Phase3Store:
             "positive_actions": 0,
             "negative_actions": 0,
         }
-        await self._call(self.db.upsert, "banbhai_reputation", default)
+        await self._call(self.db.upsert, "ghostea_reputation", default)
         return default
 
     async def change_reputation(self, chat_id, user_id, delta):
@@ -309,7 +309,7 @@ class Phase3Store:
 
         await self._call(
             self.db.upsert,
-            "banbhai_reputation",
+            "ghostea_reputation",
             {
                 "chat_id": chat_id,
                 "user_id": user_id,
@@ -323,7 +323,7 @@ class Phase3Store:
     async def record_cleanup(self, chat_id, cutoff_at, deleted_count):
         return await self._call(
             self.db.insert,
-            "banbhai_cleanup_runs",
+            "ghostea_cleanup_runs",
             {
                 "chat_id": chat_id,
                 "cutoff_at": cutoff_at,
@@ -335,21 +335,21 @@ class Phase3Store:
     async def get_analytics(self, chat_id, since_iso):
         warnings = await self._call(
             self.db.select,
-            "banbhai_warning_history",
+            "ghostea_warning_history",
             {"chat_id": f"eq.{chat_id}", "created_at": f"gte.{since_iso}",
              "select": "id,user_id,reason,source,created_at",
              "order": "created_at.desc", "limit": "1000"},
         )
         logs = await self._call(
             self.db.select,
-            "banbhai_moderation_logs",
+            "ghostea_moderation_logs",
             {"chat_id": f"eq.{chat_id}", "created_at": f"gte.{since_iso}",
              "select": "id,user_id,action,reason,created_at",
              "order": "created_at.desc", "limit": "1000"},
         )
         joins = await self._call(
             self.db.select,
-            "banbhai_join_events",
+            "ghostea_join_events",
             {"chat_id": f"eq.{chat_id}", "joined_at": f"gte.{since_iso}",
              "select": "id,user_id,joined_at",
              "order": "joined_at.desc", "limit": "1000"},
@@ -358,7 +358,7 @@ class Phase3Store:
 
     async def log_health(self, status, details="", chat_id=None):
         return await self._call(
-            self.db.insert, "banbhai_health_events",
+            self.db.insert, "ghostea_health_events",
             {"chat_id": chat_id, "status": status, "details": details},
         )
 
