@@ -20,3 +20,11 @@ def get_target_user(update):
         return message.reply_to_message.from_user
 
     return update.effective_user
+
+
+def target_from_update(update):
+    """Return replied-to user when available, otherwise sender."""
+    message = getattr(update, "effective_message", None)
+    reply = getattr(message, "reply_to_message", None) if message else None
+    target = getattr(reply, "from_user", None) if reply else None
+    return target or getattr(update, "effective_user", None)
