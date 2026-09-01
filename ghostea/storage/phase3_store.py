@@ -16,6 +16,7 @@ class Phase3Store:
 
     def __init__(self, db):
         self.db = db
+        self._warning_lock = asyncio.Lock()
 
     async def _call(self, fn, *args, **kwargs):
         return await asyncio.to_thread(fn, *args, **kwargs)
@@ -89,28 +90,36 @@ class Phase3Store:
         return int(rows[0]["count"]) if rows else 0
 
     async def add_warning(self, chat_id, user_id, reason, source):
-        count = await self.get_warning_count(chat_id, user_id) + 1
+        # Serialize increments within this bot process so two simultaneous
+        # detections do not overwrite the same warning count.
+        async with self._warning_lock:
+            count = await self.get_warning_count(chat_id, user_id) + 1
 
-        await self._call(
-            self.db.upsert,
-            "ghostea_warnings",
-            {"chat_id": chat_id, "user_id": user_id, "count": count, "updated_at": datetime.now(timezone.utc).isoformat()},
-        )
-        await self._call(
-            self.db.insert,
-            "ghostea_warning_history",
-            {
-                "chat_id": chat_id,
-                "user_id": user_id,
-                "reason": reason,
-                "source": source,
-            },
-        )
-        await self.log(
-            chat_id, user_id, "WARN", reason,
-            f"warning_count={count};source={source}",
-        )
-        return count
+            await self._call(
+                self.db.upsert,
+                "ghostea_warnings",
+                {
+                    "chat_id": chat_id,
+                    "user_id": user_id,
+                    "count": count,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            await self._call(
+                self.db.insert,
+                "ghostea_warning_history",
+                {
+                    "chat_id": chat_id,
+                    "user_id": user_id,
+                    "reason": reason,
+                    "source": source,
+                },
+            )
+            await self.log(
+                chat_id, user_id, "WARN", reason,
+                f"warning_count={count};source={source}",
+            )
+            return count
 
     async def remove_warning(self, chat_id, user_id):
         count = max(0, await self.get_warning_count(chat_id, user_id) - 1)

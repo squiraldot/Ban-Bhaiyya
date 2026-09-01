@@ -13,7 +13,8 @@ class Phase3ModerationService:
             chat.id, user.id, reason, source
         )
 
-        if count >= int(settings["max_warnings"]):
+        limit = max(1, int(settings.get("max_warnings", 3)))
+        if count >= limit:
             await chat.ban_member(user_id=user.id)
             await self.store.log(
                 chat.id, user.id, "BAN", reason,

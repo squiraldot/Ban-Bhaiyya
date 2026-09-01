@@ -1,3 +1,4 @@
+import os
 import logging
 
 from telegram import Update
@@ -68,6 +69,10 @@ def create_application():
         raise RuntimeError(
             "SUPABASE_URL and SUPABASE_KEY are required."
         )
+    if not os.getenv("DASHBOARD_API_KEY", "").strip():
+        raise RuntimeError("DASHBOARD_API_KEY is required.")
+    if not os.getenv("DASHBOARD_ORIGIN", "").strip():
+        raise RuntimeError("DASHBOARD_ORIGIN is required.")
 
     abuse_filter = AbuseFilter(FILTERS_FILE)
     spam_patterns = LineList(SPAM_PATTERNS_FILE)
@@ -103,10 +108,17 @@ def create_application():
             logger.exception("Web server failed to start")
             raise
 
+    async def post_shutdown(application):
+        server = application.bot_data.get("web_server")
+        if server:
+            server.shutdown()
+            server.server_close()
+
     application = (
         Application.builder()
         .token(TOKEN)
         .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
 

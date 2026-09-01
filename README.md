@@ -101,3 +101,16 @@ Includes welcome, anti-raid, group settings, verification gate, repeated-message
 ## Important
 
 The Vercel dashboard should never receive `SUPABASE_KEY`. It should call Ghostea's authenticated API using the dashboard API secret through a secure server-side/proxy setup.
+
+
+## Phase 7 — Production hardening
+
+- Secure Vercel server-side dashboard proxy
+- HttpOnly/Secure/SameSite dashboard session
+- Render API authentication + origin checks
+- API rate limiting and payload limits
+- Strict dashboard setting validation
+- Generic API errors (no internal exception leakage)
+- Warning increment serialization within the bot process
+- Clean shutdown of the Render web server
+- No browser exposure of `DASHBOARD_API_KEY`

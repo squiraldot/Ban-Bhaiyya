@@ -3,51 +3,128 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
 <title>Ghostea Admin 👻</title>
 <style>
-body{font-family:system-ui,sans-serif;margin:0;background:#0b0d10;color:#eee}
-main{max-width:1000px;margin:auto;padding:24px}
-.card{background:#151922;border:1px solid #2a3040;border-radius:16px;padding:18px;margin:12px 0}
-input,button{padding:10px;border-radius:10px;border:1px solid #394154;background:#0d1118;color:#fff}
-button{cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-.stat{font-size:28px;font-weight:700}
-small{color:#9ca3af}
+:root{color-scheme:dark}body{font-family:system-ui,sans-serif;margin:0;background:#0b0d10;color:#eee}
+main{max-width:1100px;margin:auto;padding:24px}.card{background:#151922;border:1px solid #2a3040;border-radius:16px;padding:18px;margin:12px 0}
+input,button{padding:11px 13px;border-radius:10px;border:1px solid #394154;background:#0d1118;color:#fff}
+button{cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.stat{font-size:28px;font-weight:700}small{color:#9ca3af}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hidden{display:none}.error{color:#ff7676}.ok{color:#55e68a}.muted{color:#9ca3af}
 </style>
 </head>
 <body>
 <main>
 <h1>Ghostea 👻 Admin</h1>
-<div class="card">
-  <input id="api" placeholder="https://ghostea.onrender.com" size="35">
-  <input id="key" type="password" placeholder="Dashboard API key" size="25">
-  <button onclick="loadHealth()">Connect</button>
-</div>
-<div id="status" class="card">Not connected.</div>
-<div id="groups" class="grid"></div>
-<script>
-const $=id=>document.getElementById(id);
-async function api(path, opts={}){
-  const base=$("api").value.replace(/\/+$/,"");
-  opts.headers={...(opts.headers||{}),Authorization:"Bearer "+$("key").value};
-  const r=await fetch(base+path,opts);
-  if(!r.ok) throw new Error((await r.text())||r.statusText);
-  return r.json();
-}
-async function loadHealth(){
-  try{
-    const h=await api("/api/health");
-    $("status").textContent="🟢 Ghostea API online • database "+(h.database?"OK":"ERROR");
-    const g=await api("/api/groups");
-    $("groups").innerHTML="";
-    for(const x of g.groups||[]){
-      const c=document.createElement("div"); c.className="card";
-      c.innerHTML="<h3>Group "+x.chat_id+"</h3><div class='stat'>"+(x.max_warnings??"-")+"</div><small>warning limit</small>";
-      $("groups").appendChild(c);
-    }
-  }catch(e){$("status").textContent="🔴 "+e.message}
-}
-</script>
+
+<section id="login" class="card">
+  <h2>Admin Login</h2>
+  <p class="muted">Your password is sent only to the secure Vercel server.</p>
+  <div class="row">
+    <input id="password" type="password" autocomplete="current-password" placeholder="Admin password">
+    <button id="loginBtn">Login</button>
+  </div>
+  <p id="loginError" class="error"></p>
+</section>
+
+<section id="panel" class="hidden">
+  <div class="card row">
+    <strong id="status">Checking...</strong>
+    <button id="refreshBtn">Refresh</button>
+    <button id="logoutBtn">Logout</button>
+  </div>
+  <div id="groups" class="grid"></div>
+</section>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+
+async function call(path, options = {}) {
+  const url = "/api/ghostea?path=" + encodeURIComponent(path);
+  const r = await fetch(url, {
+    ...options,
+    headers: {"Content-Type":"application/json", ...(options.headers||{})}
+  });
+  let data = {};
+  try { data = await r.json(); } catch {}
+  if (!r.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function load() {
+  try {
+    const health = await call("/api/health");
+    $("status").textContent = "🟢 Ghostea API online • database " + (health.database ? "OK" : "ERROR");
+    $("status").className = "ok";
+
+    const data = await call("/api/groups");
+    $("groups").innerHTML = "";
+    for (const group of data.groups || []) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h3>Group ${escapeHtml(String(group.chat_id))}</h3>
+        <div class="stat">${Number(group.max_warnings ?? 0)}</div>
+        <small>warning limit</small>
+        <p class="muted">Abuse: ${group.abuse_filter_enabled ? "ON" : "OFF"} · Spam: ${group.spam_filter_enabled ? "ON" : "OFF"}</p>
+      `;
+      $("groups").appendChild(card);
+    }
+  } catch (e) {
+    if (e.message === "login_required") showLogin();
+    else {
+      $("status").textContent = "🔴 " + e.message;
+      $("status").className = "error";
+    }
+  }
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function showLogin() {
+  $("login").classList.remove("hidden");
+  $("panel").classList.add("hidden");
+}
+
+function showPanel() {
+  $("login").classList.add("hidden");
+  $("panel").classList.remove("hidden");
+  load();
+}
+
+$("loginBtn").onclick = async () => {
+  $("loginError").textContent = "";
+  try {
+    const r = await fetch("/api/ghostea?action=login", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({password:$("password").value})
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Login failed");
+    $("password").value = "";
+    showPanel();
+  } catch (e) {
+    $("loginError").textContent = "❌ " + e.message;
+  }
+};
+
+$("logoutBtn").onclick = async () => {
+  await fetch("/api/ghostea?action=logout", {method:"POST"});
+  showLogin();
+};
+
+$("refreshBtn").onclick = load;
+showLogin();
+fetch("/api/ghostea?path=%2Fapi%2Fhealth").then(r => {
+  if (r.status === 401) showLogin();
+  else if (r.ok) showPanel();
+});
+</script>
 </body>
 </html>

@@ -40,13 +40,46 @@ Render supplies `PORT`.
 - Use a group/supergroup for testing.
 
 ## 5. Vercel
-The `dashboard/` directory is a static admin UI. Deploy that directory as a Vercel project.
-Enter the Render API URL and `DASHBOARD_API_KEY` in the dashboard. Do not hardcode secrets.
+Deploy the `dashboard/` directory as the Vercel project root.
 
-For a production-grade public dashboard, put authentication in a Vercel server-side proxy rather than relying only on browser-entered API credentials.
+Set these Vercel Environment Variables:
+- `GHOSTEA_API_URL` = Render service URL
+- `GHOSTEA_API_KEY` = same secret as Render `DASHBOARD_API_KEY`
+- `GHOSTEA_ADMIN_PASSWORD` = separate dashboard login password
+- `GHOSTEA_SESSION_SECRET` = long random secret
+
+The dashboard uses `/api/ghostea` as a server-side proxy, so the Render
+API key is never placed in browser JavaScript.
+
+Set Render `DASHBOARD_ORIGIN` to the exact Vercel dashboard origin, for example:
+`https://ghostea.vercel.app`
 
 ## 6. UptimeRobot
 Monitor:
 `https://YOUR-RENDER-SERVICE.onrender.com/health`
 
 UptimeRobot checks availability; Render remains the actual host/process.
+
+
+## Phase 7 security model
+
+The Vercel dashboard no longer sends the Render API key from browser JavaScript.
+
+Vercel server-side environment variables:
+- `GHOSTEA_API_URL`
+- `GHOSTEA_API_KEY`
+- `GHOSTEA_ADMIN_PASSWORD`
+- `GHOSTEA_SESSION_SECRET`
+
+The browser authenticates to the Vercel dashboard with the admin password.
+Vercel creates an HttpOnly, Secure, SameSite session cookie and proxies only
+the allowlisted Ghostea API endpoints. The Render API key remains server-side.
+
+Render environment variables:
+- `BOT_TOKEN`
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+- `DASHBOARD_API_KEY`
+- `DASHBOARD_ORIGIN`
+
+Rotate any secret that has ever been committed to Git or shared publicly.
