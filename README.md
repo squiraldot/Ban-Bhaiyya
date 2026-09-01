@@ -217,3 +217,27 @@ ghostea_security_locks
 ```
 
 No new environment variables are required.
+
+
+## Phase 12 — Moderation Risk Center
+
+Phase 12 adds a read-only moderation intelligence layer to the dashboard.
+
+- Risk Center shows the most active/high-risk users for a selected period.
+- Risk is derived from existing moderation logs and warning history.
+- Recent events receive more weight than older events using a seven-day half-life.
+- Existing Phase 9 `risk_score` values are respected when present in log details.
+- User profiles now include an advisory risk score and level.
+- Risk intelligence never directly triggers a ban, mute, warning, or other moderation action.
+- No new environment variables or database tables are required.
+
+Risk levels:
+
+```text
+0–24   Low
+25–49  Medium
+50–74  High
+75–100 Critical
+```
+
+These scores are advisory indicators for moderators, not proof of wrongdoing.

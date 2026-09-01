@@ -149,6 +149,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 )
                 return _json(self, 200, report)
 
+            if path.startswith("/api/groups/") and path.endswith("/risk"):
+                parts = path.split("/")
+                if len(parts) != 5:
+                    return _json(self, 404, {"error": "not_found"})
+                chat_id = int(parts[3])
+                days = int(parse_qs(parsed.query).get("days", ["7"])[0])
+                days = max(1, min(days, 90))
+                if risk is None:
+                    return _json(self, 503, {"error": "risk_unavailable"})
+                report = self.store._run_async(
+                    risk.report(chat_id, days=days, limit=50)
+                )
+                return _json(self, 200, report)
+
             if path.startswith("/api/groups/") and "/users/" in path and path.endswith("/profile"):
                 parts = path.split("/")
                 if len(parts) != 6:
@@ -156,6 +170,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 chat_id = int(parts[3])
                 user_id = int(parts[5])
                 profile = self.user_management._run_profile(chat_id, user_id)
+                if risk is not None:
+                    profile["risk"] = self.store._run_async(
+                        risk.user(chat_id, user_id, days=30)
+                    )
                 return _json(self, 200, profile)
 
             if path.startswith("/api/groups/") and path.endswith("/settings"):
@@ -428,7 +446,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return _json(self, 500, {"error": "internal_server_error"})
 
 
-def start_web_server(store, analytics, bot=None):
+def start_web_server(store, analytics, bot=None, risk=None):
     port = int(os.getenv("PORT", "10000"))
     DashboardHandler.store = store
     DashboardHandler.analytics = analytics

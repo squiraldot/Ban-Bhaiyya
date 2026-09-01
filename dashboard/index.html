@@ -39,6 +39,7 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
       <button class="navbtn" data-section="analytics">📈 Analytics</button>
       <button class="navbtn" data-section="logs">📋 Moderation Logs</button>
       <button class="navbtn" data-section="users">👤 Users</button>
+      <button class="navbtn" data-section="risk">🛡️ Risk Center</button>
     </aside>
 
     <div class="content">
@@ -85,6 +86,31 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
       <section id="logs" class="section">
         <div class="card"><div class="section-title"><h2>Moderation Logs</h2><button id="logsRefresh">Refresh</button></div><p id="logsMessage" class="muted">Select a group from Overview.</p><div class="scroll"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Reason</th><th>Details</th></tr></thead><tbody id="logRows"></tbody></table></div></div>
 
+      <section id="risk" class="section">
+        <div class="card">
+          <div class="section-title">
+            <h2>Risk Center</h2>
+            <div class="row">
+              <select id="riskDays"><option>7</option><option>14</option><option>30</option><option>90</option></select>
+              <button id="riskRefresh">Refresh</button>
+            </div>
+          </div>
+          <p id="riskMessage" class="muted">Select a group from Overview.</p>
+          <div id="riskPanel" class="hidden">
+            <div class="stats" style="margin-top:12px">
+              <div class="stat"><strong id="riskUsers">—</strong><span>Users with activity</span></div>
+              <div class="stat"><strong id="riskHigh">—</strong><span>High/Critical</span></div>
+              <div class="stat"><strong id="riskEvents">—</strong><span>Risk events</span></div>
+              <div class="stat"><strong id="riskPeriod">—</strong><span>Period</span></div>
+            </div>
+            <div class="grid2" style="margin-top:12px">
+              <div class="setting"><h3>Top risk users</h3><div class="scroll"><table class="table"><thead><tr><th>User</th><th>Score</th><th>Level</th><th>Warnings</th><th>Events</th></tr></thead><tbody id="riskRows"></tbody></table></div></div>
+              <div class="setting"><h3>Risk categories</h3><div id="riskBars"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="users" class="section">
         <div class="card">
           <div class="section-title"><h2>User Management</h2></div>
@@ -111,6 +137,7 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
               <div class="stat"><strong id="uRep">—</strong><span>Reputation</span></div>
               <div class="stat"><strong id="uStatus">—</strong><span>Telegram status</span></div>
               <div class="stat"><strong id="uUser">—</strong><span>User</span></div>
+              <div class="stat"><strong id="uRisk">—</strong><span>Risk score</span></div>
             </div>
             <div class="grid2" style="margin-top:12px">
               <div class="setting"><h3>Warning history</h3><div id="uWarningHistory" class="scroll"></div></div>
@@ -125,12 +152,13 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
 </main>
 <script>
 const $=id=>document.getElementById(id); let selectedGroup=null; let settings=null;
+const riskLevels={low:'🟢 Low',medium:'🟡 Medium',high:'🟠 High',critical:'🔴 Critical'};
 const switchKeys=[['abuse_filter_enabled','Abuse'],['spam_filter_enabled','Spam'],['link_filter_enabled','Links'],['flood_protection_enabled','Flood'],['welcome_enabled','Welcome'],['antiraid_enabled','Anti-Raid'],['verification_enabled','Verification'],['warning_decay_enabled','Warning decay'],['auto_cleanup_enabled','Auto cleanup']];
 async function api(path,options={}){const r=await fetch('/api/ghostea?path='+encodeURIComponent(path),{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||'Request failed');return d}
 function showLogin(){ $('login').classList.remove('hidden');$('app').classList.add('hidden') } function showApp(){ $('login').classList.add('hidden');$('app').classList.remove('hidden');loadGroups() }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function loadGroups(){try{const h=await api('/api/health');$('status').textContent='🟢 API online • DB '+(h.database?'OK':'ERROR');$('status').className='badge ok';const d=await api('/api/groups');const groups=d.groups||[];$('groups').innerHTML='';if(!groups.length){$('groups').innerHTML='<div class="notice muted">No configured groups yet. Add the bot to a group and let it process a message.</div>';return}for(const g of groups){const c=document.createElement('div');c.className='card';c.innerHTML=`<div class="section-title"><h3>Group ${esc(g.chat_id)}</h3><span class="badge">limit ${Number(g.max_warnings||0)}</span></div><p class="muted">Abuse ${g.abuse_filter_enabled?'ON':'OFF'} · Spam ${g.spam_filter_enabled?'ON':'OFF'} · Anti-Raid ${g.antiraid_enabled?'ON':'OFF'}</p><button data-group="${esc(g.chat_id)}" class="selectGroup">Manage group</button>`;$('groups').appendChild(c)}document.querySelectorAll('.selectGroup').forEach(b=>b.onclick=()=>selectGroup(b.dataset.group));if(selectedGroup)selectGroup(selectedGroup)}catch(e){$('status').textContent='🔴 '+e.message;$('status').className='badge error'}}
-async function selectGroup(id){selectedGroup=id;$('selectedGroup').textContent=id;$('overviewStats').classList.remove('hidden');await Promise.all([loadSettings(),loadAnalytics(),loadLogs(),loadFilters()]);}
+async function selectGroup(id){selectedGroup=id;$('selectedGroup').textContent=id;$('overviewStats').classList.remove('hidden');await Promise.all([loadSettings(),loadAnalytics(),loadLogs(),loadFilters(),loadRisk()]);}
 async function loadSettings(){if(!selectedGroup)return;try{settings=await api('/api/groups/'+selectedGroup+'/settings');$('settingsForm').classList.remove('hidden');$('settingsMessage').textContent='Editing group '+selectedGroup;document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;if(settings[k]!==undefined&&el.type!=='button')el.value=settings[k]});$('switches').innerHTML='';for(const [key,label] of switchKeys){const wrap=document.createElement('div');wrap.className='row setting';wrap.style.flex='1 1 180px';wrap.innerHTML=`<span>${label}</span><button type="button" class="switch ${settings[key]?'on':''}" data-switch="${key}" aria-label="Toggle ${label}"><i></i></button>`;$('switches').appendChild(wrap)}document.querySelectorAll('[data-switch]').forEach(b=>b.onclick=()=>{const k=b.dataset.switch;settings[k]=!settings[k];b.classList.toggle('on',settings[k])});$('ovLimit').textContent=settings.max_warnings??'—'}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
 async function saveSettings(){if(!selectedGroup)return;const payload={};document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;payload[k]=el.type==='number'?Number(el.value):el.value});document.querySelectorAll('[data-switch]').forEach(b=>payload[b.dataset.switch]=b.classList.contains('on'));try{await api('/api/groups/'+selectedGroup+'/settings',{method:'PATCH',body:JSON.stringify(payload)});$('settingsMessage').textContent='✅ Settings saved';await loadGroups()}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
 async function loadAnalytics(){if(!selectedGroup)return;try{const days=Number($('analyticsDays').value||7);const d=await api('/api/groups/'+selectedGroup+'/analytics?days='+days);$('analyticsPanel').classList.remove('hidden');$('analyticsMessage').textContent='Group '+selectedGroup;$('anJoins').textContent=d.joins??0;$('anWarnings').textContent=d.warnings??0;$('anActions').textContent=d.actions??0;$('anDays').textContent=(d.days??days)+'d';renderBars('warningBars',d.warning_reasons||{});renderBars('actionBars',d.actions_by_type||{});$('ovJoins').textContent=d.joins??0;$('ovWarnings').textContent=d.warnings??0;$('ovActions').textContent=d.actions??0}catch(e){$('analyticsMessage').textContent='❌ '+e.message}}
@@ -140,9 +168,26 @@ async function loadFilters(){if(!selectedGroup)return;try{const d=await api('/ap
 async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function deleteFilter(id){if(!confirm('Delete this custom filter?'))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 $('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp()}catch(e){$('loginError').textContent='❌ '+e.message}};
-$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('refreshBtn').onclick=loadGroups;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('refreshBtn').onclick=loadGroups;$('riskRefresh').onclick=loadRisk;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
 document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active')});
 fetch('/api/ghostea?path=%2Fapi%2Fhealth').then(r=>{if(r.status===401)showLogin();else if(r.ok)showApp();else showLogin()}).catch(showLogin);
+
+async function loadRisk(){
+  if(!selectedGroup){$('riskMessage').textContent='Select a group first.';return}
+  try{
+    const days=Number($('riskDays').value||7);
+    const d=await api('/api/groups/'+selectedGroup+'/risk?days='+days);
+    $('riskPanel').classList.remove('hidden');
+    $('riskMessage').textContent='Advisory risk view for group '+selectedGroup;
+    const users=d.users||[];
+    $('riskUsers').textContent=d.total_users??users.length;
+    $('riskHigh').textContent=users.filter(x=>x.risk_level==='high'||x.risk_level==='critical').length;
+    $('riskEvents').textContent=users.reduce((n,x)=>n+Number(x.events||0),0);
+    $('riskPeriod').textContent=(d.days??days)+'d';
+    $('riskRows').innerHTML=users.slice(0,20).map(x=>`<tr><td>${esc(x.user_id)}</td><td><b>${Number(x.risk_score||0)}</b></td><td>${esc(riskLevels[x.risk_level]||x.risk_level||'—')}</td><td>${Number(x.warnings||0)}</td><td>${Number(x.events||0)}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No risk activity.</td></tr>';
+    renderBars('riskBars',d.category_breakdown||{});
+  }catch(e){$('riskMessage').textContent='❌ '+e.message}
+}
 
 async function loadUser(){
   if(!selectedGroup){$('userMessage').textContent='Select a group first.';return}
@@ -153,6 +198,7 @@ async function loadUser(){
     $('userProfile').classList.remove('hidden');
     $('uWarnings').textContent=d.warnings??0;
     $('uRep').textContent=d.reputation?.score??0;
+    $('uRisk').textContent=(d.risk?.risk_score??0)+' • '+(d.risk?.risk_level||'low');
     $('uStatus').textContent=d.telegram?.status||'not found';
     const u=d.telegram?.user;
     $('uUser').textContent=u?(u.username?'@'+u.username:(u.first_name||u.id)):'—';
