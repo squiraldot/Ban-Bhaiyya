@@ -91,7 +91,6 @@ def create_application():
     moderation = Phase3ModerationService(store)
     moderation_engine = ModerationEngine(abuse_filter, protection)
     analytics = AnalyticsService(store)
-    user_management = UserManagementService(store, application.bot)
     verification = VerificationService(store)
 
     async def post_init(application):
@@ -125,6 +124,7 @@ def create_application():
         .post_shutdown(post_shutdown)
         .build()
     )
+    user_management = UserManagementService(store, application.bot)
 
     application.bot_data.update({
         "abuse_filter": abuse_filter,
