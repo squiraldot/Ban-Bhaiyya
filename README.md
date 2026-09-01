@@ -130,3 +130,22 @@ Features:
 
 No new database migration is required for Phase 8; it uses the existing settings,
 custom-filter, analytics and moderation-log tables.
+
+## Phase 9 — Centralized Moderation Engine
+
+Phase 9 routes message-content checks through one moderation decision layer.
+It evaluates:
+
+- abusive language
+- spam patterns
+- blocked links
+- mention spam
+- repeated messages
+- excessive message length
+
+Each detection receives a risk score and a deterministic priority. The score
+is recorded in moderation logs/announcements; it does not bypass the normal
+warning limit. Administrators remain exempt from automatic moderation.
+
+Flood protection remains a separate action because it is based on message
+frequency rather than message content.

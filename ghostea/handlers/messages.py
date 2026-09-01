@@ -1,56 +1,12 @@
 import logging
-import re
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ghostea.config import DEFAULT_MAX_WARNINGS
 from ghostea.services.telegram_service import is_admin, mute_member
 from ghostea.utils import display_name
 
 logger = logging.getLogger("Ghostea")
-
-
-def normalize(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", text.casefold())
-
-
-def find_custom_word(text, rows):
-    normalized = normalize(text)
-    for row in rows:
-        word = row["value"]
-        nw = normalize(word)
-        if len(nw) <= 3:
-            if re.search(
-                rf"(?<![a-z0-9]){re.escape(word.casefold())}(?![a-z0-9])",
-                text.casefold(),
-            ):
-                return word
-        elif nw and nw in normalized:
-            return word
-    return None
-
-
-def find_custom_domain(text, rows):
-    lowered = text.casefold()
-    for row in rows:
-        domain = row["value"].casefold()
-        if re.search(
-            rf"(?<![a-z0-9.-]){re.escape(domain)}(?![a-z0-9.-])",
-            lowered,
-        ):
-            return domain
-    return None
-
-
-def find_custom_pattern(text, rows):
-    for row in rows:
-        try:
-            if re.search(row["value"], text):
-                return row["value"]
-        except re.error:
-            logger.warning("Invalid custom regex ignored: %s", row["value"])
-    return None
 
 
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,7 +23,6 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
 
-    # Never moderate administrators.
     try:
         if await is_admin(chat, user.id):
             return
@@ -79,112 +34,78 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     settings = await store.get_settings(chat.id)
     protection = context.application.bot_data["protection"]
     moderation = context.application.bot_data["phase3_moderation"]
+    engine = context.application.bot_data["moderation_engine"]
 
-    # Message length.
-    if len(text) > int(settings.get("max_message_length", 4000)):
-        try:
-            await message.delete()
-        except Exception:
-            logger.exception("Long-message delete failed")
-        await store.log(
-            chat.id, user.id, "DELETE_LONG_MESSAGE",
-            "Message exceeded configured length",
-            f"length={len(text)}",
-        )
-        return
-
-    # Mention spam.
-    if protection.find_mention_spam(
-        text, int(settings.get("mention_spam_limit", 6))
-    ):
-        try:
-            await message.delete()
-        except Exception:
-            logger.exception("Mention-spam delete failed")
-        count, action = await moderation.issue_warning(
-            chat, user, "Mention spam", "mention_spam"
-        )
-        await announce(chat, user, count, action, settings)
-        return
-
-    # Repeated identical messages.
-    if protection.register_repeated_message(
-        chat.id, user.id, text,
-        int(settings.get("repeated_message_window_seconds", 60)),
-        int(settings.get("repeated_message_limit", 3)),
-    ):
-        try:
-            await message.delete()
-        except Exception:
-            logger.exception("Repeated-message delete failed")
-        count, action = await moderation.issue_warning(
-            chat, user, "Repeated message spam", "repeat_spam"
-        )
-        await announce(chat, user, count, action, settings)
-        return
+    # Give the engine request-local identifiers without changing the persisted
+    # group settings schema.
+    evaluation_settings = dict(settings)
+    evaluation_settings["_chat_id"] = chat.id
+    evaluation_settings["_user_id"] = user.id
 
     custom_words = await store.get_custom_filters(chat.id, "word")
     custom_domains = await store.get_custom_filters(chat.id, "domain")
     custom_patterns = await store.get_custom_filters(chat.id, "pattern")
 
-    # Links.
-    if settings["link_filter_enabled"]:
-        domain = (
-            protection.find_blocked_domain(text)
-            or find_custom_domain(text, custom_domains)
-        )
-        if domain:
-            try:
-                await message.delete()
-            except Exception:
-                logger.exception("Link delete failed")
+    detection = engine.evaluate(
+        text,
+        evaluation_settings,
+        custom_words,
+        custom_domains,
+        custom_patterns,
+    )
 
-            if settings["blocked_link_action"] == "warn":
+    if detection:
+        try:
+            await message.delete()
+        except Exception:
+            logger.exception(
+                "Moderated message delete failed: category=%s",
+                detection.category,
+            )
+
+        if detection.action == "warn":
+            try:
                 count, action = await moderation.issue_warning(
-                    chat, user, f"Blocked link: {domain}", "link"
+                    chat,
+                    user,
+                    detection.reason,
+                    detection.source,
                 )
-                await announce(chat, user, count, action, settings)
-            else:
-                try:
+                await announce(chat, user, count, action, settings, detection.score)
+            except Exception:
+                logger.exception(
+                    "Automatic moderation failed: category=%s",
+                    detection.category,
+                )
+        else:
+            try:
+                if detection.category == "blocked_link":
                     await chat.send_message(
                         f"🔗 Blocked link removed from {display_name(user)}."
                     )
-                except Exception:
-                    logger.exception("Blocked-link notice failed")
+            except Exception:
+                logger.exception("Moderation notice failed")
 
             await store.log(
-                chat.id, user.id, "DELETE_LINK",
-                f"Blocked link: {domain}", "",
+                chat.id,
+                user.id,
+                f"DELETE_{detection.category.upper()}",
+                detection.reason,
+                f"risk_score={detection.score}",
             )
-            return
+        return
 
-    # Spam.
-    if settings["spam_filter_enabled"]:
-        pattern = (
-            protection.find_spam_pattern(text)
-            or find_custom_pattern(text, custom_patterns)
-        )
-        if pattern:
-            try:
-                await message.delete()
-            except Exception:
-                logger.exception("Spam delete failed")
-            count, action = await moderation.issue_warning(
-                chat, user, "Spam/advertisement pattern", "spam"
-            )
-            await announce(chat, user, count, action, settings)
-            return
-
-    # Flood.
-    if settings["flood_protection_enabled"]:
+    # Flood is deliberately evaluated only after content moderation so a
+    # single abusive/spam message cannot consume a flood action first.
+    if settings.get("flood_protection_enabled", True):
         triggered = protection.register_message(
             chat.id,
             user.id,
-            int(settings["flood_window_seconds"]),
-            int(settings["flood_message_limit"]),
+            int(settings.get("flood_window_seconds", 8)),
+            int(settings.get("flood_message_limit", 6)),
         )
         if triggered:
-            minutes = int(settings["flood_mute_minutes"])
+            minutes = int(settings.get("flood_mute_minutes", 10))
             try:
                 await mute_member(chat, user.id, minutes)
                 await chat.send_message(
@@ -192,39 +113,20 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"Flood detected.\nMuted for {minutes} minutes."
                 )
                 await store.log(
-                    chat.id, user.id, "FLOOD_MUTE",
-                    "Flood protection", f"minutes={minutes}",
+                    chat.id,
+                    user.id,
+                    "FLOOD_MUTE",
+                    "Flood protection",
+                    f"minutes={minutes};risk_score=40",
                 )
             except Exception:
                 logger.exception("Flood mute failed")
-            return
-
-    # Abuse.
-    if settings["abuse_filter_enabled"]:
-        detected = (
-            context.application.bot_data["abuse_filter"].find(text)
-            or find_custom_word(text, custom_words)
-        )
-        if detected is None:
-            return
-
-        try:
-            await message.delete()
-        except Exception:
-            logger.exception("Abusive message delete failed")
-
-        try:
-            count, action = await moderation.issue_warning(
-                chat, user, f"Abusive language: {detected}", "automatic"
-            )
-            await announce(chat, user, count, action, settings)
-        except Exception:
-            logger.exception("Automatic moderation failed")
 
 
-async def announce(chat, user, count, action, settings):
+async def announce(chat, user, count, action, settings, risk_score=None):
     name = display_name(user)
     limit = int(settings["max_warnings"])
+    suffix = f"\nRisk score: {risk_score}" if risk_score is not None else ""
 
     try:
         if action == "ban":
@@ -232,6 +134,7 @@ async def announce(chat, user, count, action, settings):
                 f"🚫 {name}\n\n"
                 f"Warning limit reached: {count}/{limit}\n"
                 "User permanently banned."
+                f"{suffix}"
             )
         else:
             minutes = int(action.split(":", 1)[1])
@@ -239,6 +142,7 @@ async def announce(chat, user, count, action, settings):
                 f"⚠️ {name}\n\n"
                 f"Warning: {count}/{limit}\n"
                 f"Muted for {minutes} minutes."
+                f"{suffix}"
             )
     except Exception:
         logger.exception("Moderation announcement failed")

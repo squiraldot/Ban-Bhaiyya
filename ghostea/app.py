@@ -52,6 +52,7 @@ from ghostea.handlers.phase5 import (
 from ghostea.handlers.phase6 import analytics_command, export_command, health_command
 from ghostea.logging_config import setup_logging
 from ghostea.services.analytics_service import AnalyticsService
+from ghostea.services.moderation_engine import ModerationEngine
 from ghostea.services.phase3_moderation import Phase3ModerationService
 from ghostea.services.protection_service import ProtectionService
 from ghostea.services.verification_service import VerificationService
@@ -87,6 +88,7 @@ def create_application():
         DEFAULT_SPAM_MESSAGE_LIMIT,
     )
     moderation = Phase3ModerationService(store)
+    moderation_engine = ModerationEngine(abuse_filter, protection)
     analytics = AnalyticsService(store)
     verification = VerificationService(store)
 
@@ -132,6 +134,7 @@ def create_application():
         "analytics": analytics,
         "verification": verification,
         "moderation": moderation,
+        "moderation_engine": moderation_engine,
     })
 
     # Core
