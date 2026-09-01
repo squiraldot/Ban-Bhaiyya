@@ -56,6 +56,7 @@ from ghostea.services.moderation_engine import ModerationEngine
 from ghostea.services.phase3_moderation import Phase3ModerationService
 from ghostea.services.protection_service import ProtectionService
 from ghostea.services.verification_service import VerificationService
+from ghostea.services.security_service import SecurityService
 from ghostea.services.user_management_service import UserManagementService
 from ghostea.storage.database import SupabaseREST
 from ghostea.storage.phase3_store import Phase3Store
@@ -92,6 +93,7 @@ def create_application():
     moderation_engine = ModerationEngine(abuse_filter, protection)
     analytics = AnalyticsService(store)
     verification = VerificationService(store)
+    security = SecurityService(store, None)  # bot is attached after Application creation
 
     async def post_init(application):
         try:
@@ -101,6 +103,16 @@ def create_application():
                 logger.info("Migrated %s warning records.", count)
         except Exception:
             logger.exception("Warning migration failed")
+
+        # Persistent security recovery: raid locks and verification expiry.
+        try:
+            security.bot = application.bot
+            await security.start()
+            application.bot_data["security"] = security
+            logger.info("Ghostea security recovery started.")
+        except Exception:
+            logger.exception("Security recovery failed")
+            raise
 
         # Render health/API server.
         try:
@@ -112,6 +124,11 @@ def create_application():
             raise
 
     async def post_shutdown(application):
+        try:
+            await security.stop()
+        except Exception:
+            logger.exception("Security service shutdown failed")
+
         server = application.bot_data.get("web_server")
         if server:
             server.shutdown()
@@ -136,6 +153,7 @@ def create_application():
         "analytics": analytics,
         "user_management": user_management,
         "verification": verification,
+        "security": security,
         "moderation": moderation,
         "moderation_engine": moderation_engine,
     })

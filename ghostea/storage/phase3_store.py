@@ -288,6 +288,65 @@ class Phase3Store:
             },
         )
 
+
+    async def upsert_security_lock(
+        self, chat_id, lock_type, expires_at, original_permissions
+    ):
+        return await self._call(
+            self.db.upsert,
+            "ghostea_security_locks",
+            {
+                "chat_id": chat_id,
+                "lock_type": lock_type,
+                "expires_at": expires_at,
+                "original_permissions": original_permissions or {},
+            },
+        )
+
+    async def get_security_lock(self, chat_id, lock_type):
+        rows = await self._call(
+            self.db.select,
+            "ghostea_security_locks",
+            {
+                "chat_id": f"eq.{chat_id}",
+                "lock_type": f"eq.{lock_type}",
+                "limit": "1",
+            },
+        )
+        return rows[0] if rows else None
+
+    async def get_active_security_locks(self):
+        return await self._call(
+            self.db.select,
+            "ghostea_security_locks",
+            {
+                "order": "expires_at.asc",
+                "limit": "200",
+            },
+        )
+
+    async def delete_security_lock(self, chat_id, lock_type):
+        return await self._call(
+            self.db.delete,
+            "ghostea_security_locks",
+            {
+                "chat_id": f"eq.{chat_id}",
+                "lock_type": f"eq.{lock_type}",
+            },
+        )
+
+    async def get_expired_verifications(self, now_iso, limit=100):
+        return await self._call(
+            self.db.select,
+            "ghostea_verifications",
+            {
+                "verified": "eq.false",
+                "expires_at": f"lt.{now_iso}",
+                "order": "expires_at.asc",
+                "limit": str(max(1, min(int(limit), 500))),
+            },
+        )
+
     async def get_reputation(self, chat_id, user_id):
         rows = await self._call(
             self.db.select,

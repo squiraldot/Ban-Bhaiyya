@@ -184,3 +184,36 @@ table.
 
 For safety, the bot refuses dashboard/automatic ban, mute, or warning actions
 against Telegram administrators/owners.
+
+
+## Phase 11 — Persistent Security & Recovery
+
+Phase 11 hardens the two time-based security systems that previously depended
+only on in-memory/runtime state.
+
+### Anti-Raid recovery
+- Anti-Raid now snapshots the group's original default permissions.
+- The temporary lock is stored in `ghostea_security_locks`.
+- The lock is automatically restored after its configured duration.
+- Pending locks are recovered after a Render restart.
+- The old `set_permissions(..., until_date=...)` approach was removed because
+  `set_permissions` changes default chat permissions and does not support an
+  `until_date`; timed member restrictions use `restrict_member` instead.
+
+### Verification expiry enforcement
+- Unverified members no longer simply become unrestricted when the verification
+  timer expires.
+- A background security worker checks expired verification records.
+- Expired, still-present non-admin members are banned.
+- Expired verification records are cleaned up.
+- Verification records are removed immediately after successful verification.
+- Pending verification expiry is recovered after a Render restart.
+
+### Database
+Run the updated `database.sql` once in Supabase. It adds:
+
+```text
+ghostea_security_locks
+```
+
+No new environment variables are required.

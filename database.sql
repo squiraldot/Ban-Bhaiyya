@@ -151,3 +151,19 @@ on ghostea_user_admin_actions(chat_id, created_at desc);
 
 create index if not exists idx_ghostea_user_admin_actions_target
 on ghostea_user_admin_actions(chat_id, target_user_id, created_at desc);
+
+
+-- ============================================================
+-- Ghostea Phase 11 — Persistent security/recovery state
+-- ============================================================
+create table if not exists ghostea_security_locks (
+    chat_id bigint not null,
+    lock_type text not null,
+    expires_at timestamptz not null,
+    original_permissions jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    primary key (chat_id, lock_type)
+);
+
+create index if not exists idx_ghostea_security_locks_expiry
+on ghostea_security_locks(expires_at);

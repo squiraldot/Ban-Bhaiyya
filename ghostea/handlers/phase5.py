@@ -62,6 +62,10 @@ async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
+    await context.application.bot_data["phase3_store"].delete_verification(
+        chat.id, user.id
+    )
+
     await query.message.chat.send_message(
         f"✅ {display_name(user)} verified successfully!"
     )

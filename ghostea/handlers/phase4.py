@@ -1,7 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
-
-from telegram import ChatPermissions, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from ghostea.config import (
@@ -60,20 +58,11 @@ async def handle_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def activate_raid_mode(chat, context, settings):
-    store = context.application.bot_data["phase3_store"]
     minutes = int(settings.get("antiraid_lock_minutes", ANTIRAID_LOCK_MINUTES))
-    until = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    security = context.application.bot_data["security"]
 
     try:
-        await chat.set_permissions(
-            permissions=ChatPermissions(can_send_messages=False),
-            until_date=until,
-        )
-        await store.log_raid_event(
-            chat.id,
-            "RAID_LOCK",
-            f"join burst exceeded limit; lock={minutes}m",
-        )
+        await security.activate_raid(chat, minutes)
         await chat.send_message(
             "🚨 Anti-Raid activated!\n\n"
             f"Too many members joined in a short time.\n"
