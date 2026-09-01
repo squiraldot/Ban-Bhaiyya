@@ -1,15 +1,22 @@
-# Ghostea Admin Dashboard
+# Ghostea Admin Dashboard — Phase 8
 
-This dashboard uses a Vercel server-side proxy.
+A mobile-responsive Vercel dashboard backed by the Render Ghostea API.
 
-Set these Vercel Environment Variables:
+## Vercel environment variables
 
-- `GHOSTEA_API_URL` — Render service URL, e.g. `https://ghostea.onrender.com`
+- `GHOSTEA_API_URL` — Render service URL
 - `GHOSTEA_API_KEY` — same value as Render `DASHBOARD_API_KEY`
-- `GHOSTEA_ADMIN_PASSWORD` — a separate dashboard login password
-- `GHOSTEA_SESSION_SECRET` — long random secret used to sign sessions
+- `GHOSTEA_ADMIN_PASSWORD` — dashboard login password
+- `GHOSTEA_SESSION_SECRET` — long random session-signing secret
 
-The Render API key and session secret are server-side only; they are not sent
-to the browser.
+The browser never receives `GHOSTEA_API_KEY` or `GHOSTEA_SESSION_SECRET`.
 
-Deploy this directory as the Vercel project root.
+## Phase 8 features
+
+- Overview and group selection
+- Moderation settings editor
+- Protection toggles
+- Custom filter management
+- Analytics
+- Moderation logs
+- Secure session login

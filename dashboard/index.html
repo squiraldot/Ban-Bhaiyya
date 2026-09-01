@@ -4,127 +4,110 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0b0d10">
 <title>Ghostea Admin 👻</title>
 <style>
-:root{color-scheme:dark}body{font-family:system-ui,sans-serif;margin:0;background:#0b0d10;color:#eee}
-main{max-width:1100px;margin:auto;padding:24px}.card{background:#151922;border:1px solid #2a3040;border-radius:16px;padding:18px;margin:12px 0}
-input,button{padding:11px 13px;border-radius:10px;border:1px solid #394154;background:#0d1118;color:#fff}
-button{cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.stat{font-size:28px;font-weight:700}small{color:#9ca3af}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.hidden{display:none}.error{color:#ff7676}.ok{color:#55e68a}.muted{color:#9ca3af}
+:root{color-scheme:dark;--bg:#090b0f;--panel:#121620;--panel2:#171c27;--border:#293142;--text:#f5f7fb;--muted:#8f99aa;--accent:#9eff57;--danger:#ff6b78;--warn:#ffc857;--blue:#72a7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#1b2434 0,#090b0f 38%);color:var(--text);font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}.muted{color:var(--muted)}.error{color:var(--danger)}.ok{color:var(--accent)}
+main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand h1{font-size:28px;margin:0}.brand p{margin:2px 0;color:var(--muted)}
+.card{background:rgba(18,22,32,.94);border:1px solid var(--border);border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 10px 30px #0002}.login{max-width:520px;margin:12vh auto}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:180px}label{color:var(--muted);font-size:12px}input,select{width:100%;padding:10px 12px;border:1px solid #384255;border-radius:10px;background:#0c1017;color:var(--text);outline:none}input:focus,select:focus{border-color:var(--accent)}button{padding:10px 13px;border-radius:10px;border:1px solid #3a4355;background:#0e131b;color:#fff}button:hover{border-color:#657087}button.primary{background:#182313;border-color:#6e9d45;color:#d9ffc3}button.danger{border-color:#6f3038;color:#ff9da6}
+.layout{display:grid;grid-template-columns:230px 1fr;gap:14px}.sidebar{position:sticky;top:12px;height:max-content}.navbtn{display:block;width:100%;text-align:left;margin:7px 0;background:transparent}.navbtn.active{background:#1c2519;border-color:#5b7e3e}.content{min-width:0}.section{display:none}.section.active{display:block}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.stat{padding:15px;background:var(--panel2);border:1px solid var(--border);border-radius:14px}.stat strong{display:block;font-size:25px}.stat span{color:var(--muted);font-size:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.setting{padding:12px;background:#0e131b;border:1px solid var(--border);border-radius:12px}.setting .row{justify-content:space-between}.switch{width:44px;height:25px;padding:2px;border-radius:20px;background:#303746;border:0}.switch i{display:block;width:21px;height:21px;border-radius:50%;background:#fff;transition:.15s}.switch.on{background:#557d35}.switch.on i{transform:translateX(19px)}
+.badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:#202735;color:#b9c4d7;font-size:11px}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid var(--border);vertical-align:top}.table th{color:var(--muted);font-size:12px}.scroll{overflow:auto;max-height:460px}.bar{height:8px;background:#252c39;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}.notice{padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#0e131b;margin:10px 0}.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px}.section-title h2{margin:0}.danger-text{color:var(--danger)}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.sidebar{position:static;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.navbtn{margin:0}.stats{grid-template-columns:repeat(2,1fr)}.grid2,.grid3{grid-template-columns:1fr}}
+@media(max-width:500px){main{padding:12px}.sidebar{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:1fr 1fr}.brand h1{font-size:23px}}
 </style>
 </head>
 <body>
 <main>
-<h1>Ghostea 👻 Admin</h1>
-
-<section id="login" class="card">
-  <h2>Admin Login</h2>
-  <p class="muted">Your password is sent only to the secure Vercel server.</p>
-  <div class="row">
-    <input id="password" type="password" autocomplete="current-password" placeholder="Admin password">
-    <button id="loginBtn">Login</button>
-  </div>
-  <p id="loginError" class="error"></p>
+<section id="login" class="card login">
+  <div class="brand"><h1>Ghostea 👻 Admin</h1><p>Secure moderation control center</p></div>
+  <div class="field" style="margin-top:18px"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter dashboard password"></div>
+  <div class="row" style="margin-top:12px"><button id="loginBtn" class="primary">Login</button><span id="loginError" class="error"></span></div>
 </section>
 
-<section id="panel" class="hidden">
-  <div class="card row">
-    <strong id="status">Checking...</strong>
-    <button id="refreshBtn">Refresh</button>
-    <button id="logoutBtn">Logout</button>
+<section id="app" class="hidden">
+  <div class="topbar">
+    <div class="brand"><h1>Ghostea 👻</h1><p>Admin Control Center</p></div>
+    <div class="row"><span id="status" class="badge">Checking…</span><button id="refreshBtn">↻ Refresh</button><button id="logoutBtn">Logout</button></div>
   </div>
-  <div id="groups" class="grid"></div>
+
+  <div class="layout">
+    <aside class="sidebar card">
+      <button class="navbtn active" data-section="overview">📊 Overview</button>
+      <button class="navbtn" data-section="settings">⚙️ Settings</button>
+      <button class="navbtn" data-section="filters">🧹 Filters</button>
+      <button class="navbtn" data-section="analytics">📈 Analytics</button>
+      <button class="navbtn" data-section="logs">📋 Moderation Logs</button>
+    </aside>
+
+    <div class="content">
+      <section id="overview" class="section active">
+        <div class="card"><div class="section-title"><h2>Groups</h2><button id="overviewRefresh">Refresh</button></div><p class="muted">Select a group to manage its moderation configuration.</p><div id="groups" class="grid2"></div></div>
+        <div id="overviewStats" class="card hidden"><div class="section-title"><h2>Selected group</h2><span id="selectedGroup" class="badge"></span></div><div class="stats" style="margin-top:12px"><div class="stat"><strong id="ovWarnings">—</strong><span>Warnings</span></div><div class="stat"><strong id="ovActions">—</strong><span>Moderation actions</span></div><div class="stat"><strong id="ovJoins">—</strong><span>Member joins</span></div><div class="stat"><strong id="ovLimit">—</strong><span>Warning limit</span></div></div></div>
+      </section>
+
+      <section id="settings" class="section">
+        <div class="card"><div class="section-title"><h2>Group Settings</h2><button id="saveSettings" class="primary">Save changes</button></div><p id="settingsMessage" class="muted">Select a group from Overview.</p><div id="settingsForm" class="hidden">
+          <div class="grid3" style="margin-top:14px">
+            <div class="setting"><label>Warning limit</label><input data-key="max_warnings" type="number" min="1" max="20"></div>
+            <div class="setting"><label>Mute 1 (minutes)</label><input data-key="mute1_minutes" type="number" min="1" max="10080"></div>
+            <div class="setting"><label>Mute 2 (minutes)</label><input data-key="mute2_minutes" type="number" min="1" max="10080"></div>
+            <div class="setting"><label>Flood message limit</label><input data-key="flood_message_limit" type="number" min="2" max="100"></div>
+            <div class="setting"><label>Flood window (seconds)</label><input data-key="flood_window_seconds" type="number" min="1" max="300"></div>
+            <div class="setting"><label>Flood mute (minutes)</label><input data-key="flood_mute_minutes" type="number" min="1" max="10080"></div>
+            <div class="setting"><label>Anti-Raid join limit</label><input data-key="antiraid_join_limit" type="number" min="2" max="1000"></div>
+            <div class="setting"><label>Anti-Raid window (seconds)</label><input data-key="antiraid_window_seconds" type="number" min="5" max="3600"></div>
+            <div class="setting"><label>Anti-Raid lock (minutes)</label><input data-key="antiraid_lock_minutes" type="number" min="1" max="1440"></div>
+            <div class="setting"><label>Verification timeout</label><input data-key="verification_timeout_seconds" type="number" min="30" max="3600"></div>
+            <div class="setting"><label>Maximum message length</label><input data-key="max_message_length" type="number" min="100" max="10000"></div>
+            <div class="setting"><label>Repeated message limit</label><input data-key="repeated_message_limit" type="number" min="2" max="100"></div>
+            <div class="setting"><label>Repeated window (seconds)</label><input data-key="repeated_message_window_seconds" type="number" min="5" max="3600"></div>
+            <div class="setting"><label>Mention spam limit</label><input data-key="mention_spam_limit" type="number" min="2" max="100"></div>
+            <div class="setting"><label>Warning decay (days)</label><input data-key="warning_decay_days" type="number" min="1" max="3650"></div>
+            <div class="setting"><label>Cleanup max age (days)</label><input data-key="cleanup_max_age_days" type="number" min="1" max="3650"></div>
+          </div>
+          <div class="grid2" style="margin-top:12px">
+            <div class="setting"><label>Blocked-link action</label><select data-key="blocked_link_action"><option value="delete">Delete</option><option value="warn">Warn</option></select></div>
+            <div class="setting"><label>Protection switches</label><div id="switches" class="row" style="margin-top:8px"></div></div>
+          </div>
+        </div></div>
+      </section>
+
+      <section id="filters" class="section">
+        <div class="card"><div class="section-title"><h2>Custom Filters</h2><button id="filtersRefresh">Refresh</button></div><p class="muted">Add group-specific words, domains or patterns without editing the source repository.</p><div id="filterForm" class="grid3"><div class="field"><label>Type</label><select id="filterType"><option value="word">Word</option><option value="domain">Domain</option><option value="pattern">Pattern</option></select></div><div class="field" style="grid-column:span 2"><label>Value</label><input id="filterValue" maxlength="500" placeholder="e.g. example.com or pattern"></div></div><button id="addFilter" class="primary" style="margin-top:10px">Add filter</button><p id="filterMessage" class="muted"></p><div class="scroll"><table class="table"><thead><tr><th>Type</th><th>Value</th><th>Action</th></tr></thead><tbody id="filterRows"></tbody></table></div></div>
+      </section>
+
+      <section id="analytics" class="section">
+        <div class="card"><div class="section-title"><h2>Analytics</h2><div class="row"><select id="analyticsDays"><option>7</option><option>14</option><option>30</option><option>90</option></select><button id="analyticsRefresh">Refresh</button></div></div><p id="analyticsMessage" class="muted">Select a group from Overview.</p><div id="analyticsPanel" class="hidden"><div class="stats" style="margin-top:12px"><div class="stat"><strong id="anJoins">—</strong><span>Joins</span></div><div class="stat"><strong id="anWarnings">—</strong><span>Warnings</span></div><div class="stat"><strong id="anActions">—</strong><span>Actions</span></div><div class="stat"><strong id="anDays">—</strong><span>Period</span></div></div><div class="grid2" style="margin-top:12px"><div class="setting"><h3>Warning reasons</h3><div id="warningBars"></div></div><div class="setting"><h3>Moderation actions</h3><div id="actionBars"></div></div></div></div></div>
+      </section>
+
+      <section id="logs" class="section">
+        <div class="card"><div class="section-title"><h2>Moderation Logs</h2><button id="logsRefresh">Refresh</button></div><p id="logsMessage" class="muted">Select a group from Overview.</p><div class="scroll"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Reason</th><th>Details</th></tr></thead><tbody id="logRows"></tbody></table></div></div>
+      </section>
+    </div>
+  </div>
 </section>
 </main>
 <script>
-const $ = id => document.getElementById(id);
-
-async function call(path, options = {}) {
-  const url = "/api/ghostea?path=" + encodeURIComponent(path);
-  const r = await fetch(url, {
-    ...options,
-    headers: {"Content-Type":"application/json", ...(options.headers||{})}
-  });
-  let data = {};
-  try { data = await r.json(); } catch {}
-  if (!r.ok) throw new Error(data.error || "Request failed");
-  return data;
-}
-
-async function load() {
-  try {
-    const health = await call("/api/health");
-    $("status").textContent = "🟢 Ghostea API online • database " + (health.database ? "OK" : "ERROR");
-    $("status").className = "ok";
-
-    const data = await call("/api/groups");
-    $("groups").innerHTML = "";
-    for (const group of data.groups || []) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <h3>Group ${escapeHtml(String(group.chat_id))}</h3>
-        <div class="stat">${Number(group.max_warnings ?? 0)}</div>
-        <small>warning limit</small>
-        <p class="muted">Abuse: ${group.abuse_filter_enabled ? "ON" : "OFF"} · Spam: ${group.spam_filter_enabled ? "ON" : "OFF"}</p>
-      `;
-      $("groups").appendChild(card);
-    }
-  } catch (e) {
-    if (e.message === "login_required") showLogin();
-    else {
-      $("status").textContent = "🔴 " + e.message;
-      $("status").className = "error";
-    }
-  }
-}
-
-function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[c]));
-}
-
-function showLogin() {
-  $("login").classList.remove("hidden");
-  $("panel").classList.add("hidden");
-}
-
-function showPanel() {
-  $("login").classList.add("hidden");
-  $("panel").classList.remove("hidden");
-  load();
-}
-
-$("loginBtn").onclick = async () => {
-  $("loginError").textContent = "";
-  try {
-    const r = await fetch("/api/ghostea?action=login", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({password:$("password").value})
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || "Login failed");
-    $("password").value = "";
-    showPanel();
-  } catch (e) {
-    $("loginError").textContent = "❌ " + e.message;
-  }
-};
-
-$("logoutBtn").onclick = async () => {
-  await fetch("/api/ghostea?action=logout", {method:"POST"});
-  showLogin();
-};
-
-$("refreshBtn").onclick = load;
-showLogin();
-fetch("/api/ghostea?path=%2Fapi%2Fhealth").then(r => {
-  if (r.status === 401) showLogin();
-  else if (r.ok) showPanel();
-});
+const $=id=>document.getElementById(id); let selectedGroup=null; let settings=null;
+const switchKeys=[['abuse_filter_enabled','Abuse'],['spam_filter_enabled','Spam'],['link_filter_enabled','Links'],['flood_protection_enabled','Flood'],['welcome_enabled','Welcome'],['antiraid_enabled','Anti-Raid'],['verification_enabled','Verification'],['warning_decay_enabled','Warning decay'],['auto_cleanup_enabled','Auto cleanup']];
+async function api(path,options={}){const r=await fetch('/api/ghostea?path='+encodeURIComponent(path),{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||'Request failed');return d}
+function showLogin(){ $('login').classList.remove('hidden');$('app').classList.add('hidden') } function showApp(){ $('login').classList.add('hidden');$('app').classList.remove('hidden');loadGroups() }
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function loadGroups(){try{const h=await api('/api/health');$('status').textContent='🟢 API online • DB '+(h.database?'OK':'ERROR');$('status').className='badge ok';const d=await api('/api/groups');const groups=d.groups||[];$('groups').innerHTML='';if(!groups.length){$('groups').innerHTML='<div class="notice muted">No configured groups yet. Add the bot to a group and let it process a message.</div>';return}for(const g of groups){const c=document.createElement('div');c.className='card';c.innerHTML=`<div class="section-title"><h3>Group ${esc(g.chat_id)}</h3><span class="badge">limit ${Number(g.max_warnings||0)}</span></div><p class="muted">Abuse ${g.abuse_filter_enabled?'ON':'OFF'} · Spam ${g.spam_filter_enabled?'ON':'OFF'} · Anti-Raid ${g.antiraid_enabled?'ON':'OFF'}</p><button data-group="${esc(g.chat_id)}" class="selectGroup">Manage group</button>`;$('groups').appendChild(c)}document.querySelectorAll('.selectGroup').forEach(b=>b.onclick=()=>selectGroup(b.dataset.group));if(selectedGroup)selectGroup(selectedGroup)}catch(e){$('status').textContent='🔴 '+e.message;$('status').className='badge error'}}
+async function selectGroup(id){selectedGroup=id;$('selectedGroup').textContent=id;$('overviewStats').classList.remove('hidden');await Promise.all([loadSettings(),loadAnalytics(),loadLogs(),loadFilters()]);}
+async function loadSettings(){if(!selectedGroup)return;try{settings=await api('/api/groups/'+selectedGroup+'/settings');$('settingsForm').classList.remove('hidden');$('settingsMessage').textContent='Editing group '+selectedGroup;document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;if(settings[k]!==undefined&&el.type!=='button')el.value=settings[k]});$('switches').innerHTML='';for(const [key,label] of switchKeys){const wrap=document.createElement('div');wrap.className='row setting';wrap.style.flex='1 1 180px';wrap.innerHTML=`<span>${label}</span><button type="button" class="switch ${settings[key]?'on':''}" data-switch="${key}" aria-label="Toggle ${label}"><i></i></button>`;$('switches').appendChild(wrap)}document.querySelectorAll('[data-switch]').forEach(b=>b.onclick=()=>{const k=b.dataset.switch;settings[k]=!settings[k];b.classList.toggle('on',settings[k])});$('ovLimit').textContent=settings.max_warnings??'—'}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
+async function saveSettings(){if(!selectedGroup)return;const payload={};document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;payload[k]=el.type==='number'?Number(el.value):el.value});document.querySelectorAll('[data-switch]').forEach(b=>payload[b.dataset.switch]=b.classList.contains('on'));try{await api('/api/groups/'+selectedGroup+'/settings',{method:'PATCH',body:JSON.stringify(payload)});$('settingsMessage').textContent='✅ Settings saved';await loadGroups()}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
+async function loadAnalytics(){if(!selectedGroup)return;try{const days=Number($('analyticsDays').value||7);const d=await api('/api/groups/'+selectedGroup+'/analytics?days='+days);$('analyticsPanel').classList.remove('hidden');$('analyticsMessage').textContent='Group '+selectedGroup;$('anJoins').textContent=d.joins??0;$('anWarnings').textContent=d.warnings??0;$('anActions').textContent=d.actions??0;$('anDays').textContent=(d.days??days)+'d';renderBars('warningBars',d.warning_reasons||{});renderBars('actionBars',d.actions_by_type||{});$('ovJoins').textContent=d.joins??0;$('ovWarnings').textContent=d.warnings??0;$('ovActions').textContent=d.actions??0}catch(e){$('analyticsMessage').textContent='❌ '+e.message}}
+function renderBars(id,obj){const root=$(id);root.innerHTML='';const entries=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,8);if(!entries.length){root.innerHTML='<p class="muted">No data.</p>';return}const max=Math.max(...entries.map(x=>Number(x[1])));for(const [k,v] of entries){const el=document.createElement('div');el.style.margin='10px 0';el.innerHTML=`<div class="row" style="justify-content:space-between"><span>${esc(k)}</span><span class="badge">${Number(v)}</span></div><div class="bar"><i style="width:${max?Math.round(Number(v)/max*100):0}%"></i></div>`;root.appendChild(el)}}
+async function loadLogs(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/logs?limit=100');const rows=d.logs||[];$('logRows').innerHTML=rows.map(r=>`<tr><td>${esc(r.created_at||'—')}</td><td>${esc(r.user_id||'—')}</td><td><span class="badge">${esc(r.action)}</span></td><td>${esc(r.reason||'—')}</td><td>${esc(r.details||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No moderation logs.</td></tr>';$('logsMessage').textContent='Group '+selectedGroup}catch(e){$('logsMessage').textContent='❌ '+e.message}}
+async function loadFilters(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/filters');$('filterRows').innerHTML=(d.filters||[]).map(r=>`<tr><td>${esc(r.filter_type)}</td><td>${esc(r.value)}</td><td><button class="danger deleteFilter" data-id="${esc(r.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="3" class="muted">No custom filters.</td></tr>';document.querySelectorAll('.deleteFilter').forEach(b=>b.onclick=()=>deleteFilter(b.dataset.id))}catch(e){$('filterMessage').textContent='❌ '+e.message}}
+async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
+async function deleteFilter(id){if(!confirm('Delete this custom filter?'))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
+$('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp()}catch(e){$('loginError').textContent='❌ '+e.message}};
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('refreshBtn').onclick=loadGroups;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;
+document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active')});
+fetch('/api/ghostea?path=%2Fapi%2Fhealth').then(r=>{if(r.status===401)showLogin();else if(r.ok)showApp();else showLogin()}).catch(showLogin);
 </script>
 </body>
 </html>

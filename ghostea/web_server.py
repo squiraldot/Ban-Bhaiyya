@@ -159,6 +159,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     {"chat_id": f"eq.{chat_id}", "limit": "1"},
                 )
                 return _json(self, 200, settings[0] if settings else {})
+
+            if path.startswith("/api/groups/") and path.endswith("/logs"):
+                parts = path.split("/")
+                if len(parts) != 5:
+                    return _json(self, 404, {"error": "not_found"})
+                chat_id = int(parts[3])
+                limit = int(parse_qs(parsed.query).get("limit", ["100"])[0])
+                limit = max(1, min(limit, 200))
+                logs = self.store._call_sync(
+                    self.store.db.select,
+                    "ghostea_moderation_logs",
+                    {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": str(limit)},
+                )
+                return _json(self, 200, {"logs": logs})
+
+            if path.startswith("/api/groups/") and path.endswith("/filters"):
+                parts = path.split("/")
+                if len(parts) != 5:
+                    return _json(self, 404, {"error": "not_found"})
+                chat_id = int(parts[3])
+                filters = self.store._call_sync(
+                    self.store.db.select,
+                    "ghostea_custom_filters",
+                    {"chat_id": f"eq.{chat_id}", "order": "created_at.asc", "limit": "500"},
+                )
+                return _json(self, 200, {"filters": filters})
         except (ValueError, TypeError):
             return _json(self, 400, {"error": "invalid_request"})
         except Exception:
@@ -166,6 +192,62 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return _json(self, 500, {"error": "internal_server_error"})
 
         return _json(self, 404, {"error": "not_found"})
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if not self._protected():
+            return
+        parts = parsed.path.split("/")
+        if len(parts) != 5 or parts[1] != "api" or parts[2] != "groups" or parts[4] != "filters":
+            return _json(self, 404, {"error": "not_found"})
+        try:
+            chat_id = int(parts[3])
+            length = int(self.headers.get("Content-Length", "0"))
+            if length < 0 or length > MAX_BODY_BYTES:
+                return _json(self, 413, {"error": "payload_too_large"})
+            if not self.headers.get("Content-Type", "").startswith("application/json"):
+                return _json(self, 415, {"error": "json_required"})
+            payload = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(payload, dict):
+                return _json(self, 400, {"error": "object_required"})
+            filter_type = payload.get("filter_type")
+            value = payload.get("value")
+            if filter_type not in ("word", "domain", "pattern"):
+                return _json(self, 400, {"error": "invalid_filter_type"})
+            if not isinstance(value, str) or not value.strip() or len(value.strip()) > 500:
+                return _json(self, 400, {"error": "invalid_filter_value"})
+            result = self.store._call_sync(
+                self.store.db.upsert,
+                "ghostea_custom_filters",
+                {"chat_id": chat_id, "filter_type": filter_type, "value": value.strip(), "enabled": True},
+            )
+            return _json(self, 200, result)
+        except json.JSONDecodeError:
+            return _json(self, 400, {"error": "invalid_json"})
+        except (ValueError, TypeError):
+            return _json(self, 400, {"error": "invalid_request"})
+        except Exception:
+            return _json(self, 500, {"error": "internal_server_error"})
+
+    def do_DELETE(self):
+        if not self._protected():
+            return
+        parts = urlparse(self.path).path.split("/")
+        if len(parts) != 6 or parts[1] != "api" or parts[2] != "groups" or parts[4] != "filters":
+            return _json(self, 404, {"error": "not_found"})
+        try:
+            chat_id = int(parts[3])
+            filter_id = int(parts[5])
+            result = self.store._call_sync(
+                self.store.db.delete,
+                "ghostea_custom_filters",
+                {"chat_id": f"eq.{chat_id}", "id": f"eq.{filter_id}"},
+            )
+            return _json(self, 200, {"ok": True, "deleted": len(result or [])})
+        except (ValueError, TypeError):
+            return _json(self, 400, {"error": "invalid_request"})
+        except Exception:
+            return _json(self, 500, {"error": "internal_server_error"})
 
     def do_PATCH(self):
         if not self._protected():

@@ -114,3 +114,19 @@ The Vercel dashboard should never receive `SUPABASE_KEY`. It should call Ghostea
 - Warning increment serialization within the bot process
 - Clean shutdown of the Render web server
 - No browser exposure of `DASHBOARD_API_KEY`
+
+## Phase 8 — Full Admin Control Center
+
+The Vercel dashboard now provides a protected admin control center for configured groups.
+
+Features:
+- Group selection and live status
+- Group moderation settings and protection switches
+- Custom word/domain/pattern filters
+- Analytics with warning/action breakdowns
+- Recent moderation logs
+- Mobile-responsive UI
+- Secure Vercel server-side proxy; Render and Supabase secrets remain server-side
+
+No new database migration is required for Phase 8; it uses the existing settings,
+custom-filter, analytics and moderation-log tables.

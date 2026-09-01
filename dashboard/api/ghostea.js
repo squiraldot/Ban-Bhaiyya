@@ -133,15 +133,22 @@ export default async function handler(req, res) {
   }
 
   const pathname = parsedPath.pathname;
-  const match = pathname.match(/^\/api\/groups\/(-?\d+)\/(settings|analytics)$/);
-  const allowed = ALLOWED_GET.has(pathname) || Boolean(match);
+  const match = pathname.match(/^\/api\/groups\/(-?\d+)\/(settings|analytics|logs|filters)$/);
+  const filterDelete = pathname.match(/^\/api\/groups\/(-?\d+)\/filters\/(\d+)$/);
+  const allowed = ALLOWED_GET.has(pathname) || Boolean(match) || Boolean(filterDelete);
   if (!allowed) return json(res, 404, { error: "not_found" });
 
-  if (req.method !== "GET" && req.method !== "PATCH") {
+  if (!["GET", "PATCH", "POST", "DELETE"].includes(req.method)) {
     return json(res, 405, { error: "method_not_allowed" });
   }
 
-  if (req.method === "PATCH" && !match) {
+  if (req.method === "PATCH" && !(match && pathname.endsWith("/settings"))) {
+    return json(res, 405, { error: "method_not_allowed" });
+  }
+  if (req.method === "POST" && !(match && pathname.endsWith("/filters"))) {
+    return json(res, 405, { error: "method_not_allowed" });
+  }
+  if (req.method === "DELETE" && !filterDelete) {
     return json(res, 405, { error: "method_not_allowed" });
   }
 
@@ -161,7 +168,7 @@ export default async function handler(req, res) {
   };
 
   let body;
-  if (req.method === "PATCH") {
+  if (req.method === "PATCH" || req.method === "POST") {
     const parsed = await parseBody(req).catch(() => null);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return json(res, 400, { error: "object_required" });
