@@ -83,3 +83,7 @@ Render environment variables:
 - `DASHBOARD_ORIGIN`
 
 Rotate any secret that has ever been committed to Git or shared publicly.
+
+
+### Phase 10
+Run the updated `database.sql` once in Supabase to create `ghostea_user_admin_actions`. No new environment variables are required.

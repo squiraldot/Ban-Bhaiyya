@@ -56,6 +56,7 @@ from ghostea.services.moderation_engine import ModerationEngine
 from ghostea.services.phase3_moderation import Phase3ModerationService
 from ghostea.services.protection_service import ProtectionService
 from ghostea.services.verification_service import VerificationService
+from ghostea.services.user_management_service import UserManagementService
 from ghostea.storage.database import SupabaseREST
 from ghostea.storage.phase3_store import Phase3Store
 from ghostea.web_server import start_web_server
@@ -90,6 +91,7 @@ def create_application():
     moderation = Phase3ModerationService(store)
     moderation_engine = ModerationEngine(abuse_filter, protection)
     analytics = AnalyticsService(store)
+    user_management = UserManagementService(store, application.bot)
     verification = VerificationService(store)
 
     async def post_init(application):
@@ -103,7 +105,7 @@ def create_application():
 
         # Render health/API server.
         try:
-            server = start_web_server(store, analytics)
+            server = start_web_server(store, analytics, application.bot)
             application.bot_data["web_server"] = server
             logger.info("Ghostea web server started.")
         except Exception:
@@ -132,6 +134,7 @@ def create_application():
         "phase3_store": store,
         "phase3_moderation": moderation,
         "analytics": analytics,
+        "user_management": user_management,
         "verification": verification,
         "moderation": moderation,
         "moderation_engine": moderation_engine,

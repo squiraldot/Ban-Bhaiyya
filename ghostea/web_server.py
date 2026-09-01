@@ -52,6 +52,7 @@ def _json(handler, status, payload):
 class DashboardHandler(BaseHTTPRequestHandler):
     store = None
     analytics = None
+    user_management = None
     _rate_lock = threading.Lock()
     _rate = defaultdict(deque)
 
@@ -148,6 +149,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 )
                 return _json(self, 200, report)
 
+            if path.startswith("/api/groups/") and "/users/" in path and path.endswith("/profile"):
+                parts = path.split("/")
+                if len(parts) != 6:
+                    return _json(self, 404, {"error": "not_found"})
+                chat_id = int(parts[3])
+                user_id = int(parts[5])
+                profile = self.user_management._run_profile(chat_id, user_id)
+                return _json(self, 200, profile)
+
             if path.startswith("/api/groups/") and path.endswith("/settings"):
                 parts = path.split("/")
                 if len(parts) != 5:
@@ -197,6 +207,72 @@ class DashboardHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if not self._protected():
             return
+        parts = parsed.path.split("/")
+        if len(parts) == 5 and parts[1] == "api" and parts[2] == "groups" and parts[4] == "users":
+            try:
+                chat_id = int(parts[3])
+                length = int(self.headers.get("Content-Length", "0"))
+                if length < 0 or length > MAX_BODY_BYTES:
+                    return _json(self, 413, {"error": "payload_too_large"})
+                if not self.headers.get("Content-Type", "").startswith("application/json"):
+                    return _json(self, 415, {"error": "json_required"})
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                if not isinstance(payload, dict):
+                    return _json(self, 400, {"error": "object_required"})
+
+                target_user_id = int(payload.get("user_id"))
+                action = str(payload.get("action", "")).lower()
+                reason = str(payload.get("reason", "Dashboard action")).strip()[:500]
+                minutes = int(payload.get("minutes", 10))
+
+                if target_user_id == 0:
+                    return _json(self, 400, {"error": "invalid_user_id"})
+                if action not in {
+                    "warn", "unwarn", "reset_warnings",
+                    "ban", "unban", "mute", "unmute",
+                }:
+                    return _json(self, 400, {"error": "invalid_action"})
+                if action == "mute" and not 1 <= minutes <= 10080:
+                    return _json(self, 400, {"error": "invalid_minutes"})
+
+                # The Vercel proxy authenticates the dashboard. The Telegram
+                # bot itself remains the executor of moderation actions.
+                if action == "warn":
+                    result = self.user_management._run_action(
+                        "warn", chat_id, target_user_id, reason=reason
+                    )
+                elif action == "unwarn":
+                    result = self.user_management._run_action(
+                        "unwarn", chat_id, target_user_id
+                    )
+                elif action == "reset_warnings":
+                    result = self.user_management._run_action(
+                        "reset_warnings", chat_id, target_user_id
+                    )
+                elif action == "ban":
+                    result = self.user_management._run_action(
+                        "ban", chat_id, target_user_id
+                    )
+                elif action == "unban":
+                    result = self.user_management._run_action(
+                        "unban", chat_id, target_user_id
+                    )
+                elif action == "mute":
+                    result = self.user_management._run_action(
+                        "mute", chat_id, target_user_id, minutes=minutes
+                    )
+                else:
+                    result = self.user_management._run_action(
+                        "unmute", chat_id, target_user_id
+                    )
+                return _json(self, 200, result)
+            except PermissionError:
+                return _json(self, 403, {"error": "target_is_admin"})
+            except (ValueError, TypeError):
+                return _json(self, 400, {"error": "invalid_request"})
+            except Exception:
+                return _json(self, 500, {"error": "internal_server_error"})
+
         parts = parsed.path.split("/")
         if len(parts) != 5 or parts[1] != "api" or parts[2] != "groups" or parts[4] != "filters":
             return _json(self, 404, {"error": "not_found"})
@@ -352,10 +428,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return _json(self, 500, {"error": "internal_server_error"})
 
 
-def start_web_server(store, analytics):
+def start_web_server(store, analytics, bot=None):
     port = int(os.getenv("PORT", "10000"))
     DashboardHandler.store = store
     DashboardHandler.analytics = analytics
+    DashboardHandler.user_management = None
 
     server = ThreadingHTTPServer(("0.0.0.0", port), DashboardHandler)
 
@@ -369,6 +446,45 @@ def start_web_server(store, analytics):
 
         store._call_sync = _call_sync
         store._run_async = _run_async
+
+
+    def run_async(coro):
+        import asyncio
+        return asyncio.run(coro)
+
+    if bot is not None:
+        from ghostea.services.user_management_service import UserManagementService
+
+        manager = UserManagementService(store, bot)
+
+        async def _profile(chat_id, user_id):
+            return await manager.profile(chat_id, user_id)
+
+        async def _action(action, chat_id, user_id, **kwargs):
+            # Dashboard authentication is already enforced at this API layer.
+            # The Telegram bot is the actor, so the audit trail records 0.
+            admin_id = 0
+            if action == "warn":
+                return await manager.warn(chat_id, user_id, admin_id, kwargs.get("reason", "Dashboard action"))
+            if action == "unwarn":
+                return await manager.remove_warning(chat_id, user_id, admin_id)
+            if action == "reset_warnings":
+                return await manager.reset_warnings(chat_id, user_id, admin_id)
+            if action == "ban":
+                return await manager.ban(chat_id, user_id, admin_id)
+            if action == "unban":
+                return await manager.unban(chat_id, user_id, admin_id)
+            if action == "mute":
+                return await manager.mute(chat_id, user_id, admin_id, kwargs.get("minutes", 10))
+            if action == "unmute":
+                return await manager.unmute(chat_id, user_id, admin_id)
+            raise ValueError("invalid_action")
+
+        manager._run_profile = lambda chat_id, user_id: run_async(_profile(chat_id, user_id))
+        manager._run_action = lambda action, chat_id, user_id, **kwargs: run_async(
+            _action(action, chat_id, user_id, **kwargs)
+        )
+        DashboardHandler.user_management = manager
 
     thread = threading.Thread(
         target=server.serve_forever,

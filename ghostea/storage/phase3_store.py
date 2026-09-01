@@ -371,3 +371,56 @@ class Phase3Store:
             {"chat_id": chat_id, "status": status, "details": details},
         )
 
+
+    async def get_user_profile(self, chat_id, user_id, log_limit=100):
+        warnings = await self.get_warning_count(chat_id, user_id)
+        history = await self.get_history(chat_id, user_id, limit=log_limit)
+        reputation = await self.get_reputation(chat_id, user_id)
+        logs = await self._call(
+            self.db.select,
+            "ghostea_moderation_logs",
+            {
+                "chat_id": f"eq.{chat_id}",
+                "user_id": f"eq.{user_id}",
+                "order": "created_at.desc",
+                "limit": str(log_limit),
+            },
+        )
+        return {
+            "chat_id": chat_id,
+            "user_id": user_id,
+            "warnings": warnings,
+            "warning_history": history,
+            "reputation": reputation,
+            "moderation_logs": logs,
+        }
+
+    async def log_user_admin_action(
+        self, chat_id, target_user_id, admin_user_id, action, details=""
+    ):
+        return await self._call(
+            self.db.insert,
+            "ghostea_user_admin_actions",
+            {
+                "chat_id": chat_id,
+                "target_user_id": target_user_id,
+                "admin_user_id": admin_user_id,
+                "action": action,
+                "details": details,
+            },
+        )
+
+    async def recent_user_admin_actions(
+        self, chat_id, target_user_id, limit=100
+    ):
+        return await self._call(
+            self.db.select,
+            "ghostea_user_admin_actions",
+            {
+                "chat_id": f"eq.{chat_id}",
+                "target_user_id": f"eq.{target_user_id}",
+                "order": "created_at.desc",
+                "limit": str(limit),
+            },
+        )
+

@@ -135,7 +135,9 @@ export default async function handler(req, res) {
   const pathname = parsedPath.pathname;
   const match = pathname.match(/^\/api\/groups\/(-?\d+)\/(settings|analytics|logs|filters)$/);
   const filterDelete = pathname.match(/^\/api\/groups\/(-?\d+)\/filters\/(\d+)$/);
-  const allowed = ALLOWED_GET.has(pathname) || Boolean(match) || Boolean(filterDelete);
+  const userProfile = pathname.match(/^\/api\/groups\/(-?\d+)\/users\/(-?\d+)\/profile$/);
+  const userAction = pathname.match(/^\/api\/groups\/(-?\d+)\/users$/);
+  const allowed = ALLOWED_GET.has(pathname) || Boolean(match) || Boolean(filterDelete) || Boolean(userProfile) || Boolean(userAction);
   if (!allowed) return json(res, 404, { error: "not_found" });
 
   if (!["GET", "PATCH", "POST", "DELETE"].includes(req.method)) {
@@ -145,7 +147,7 @@ export default async function handler(req, res) {
   if (req.method === "PATCH" && !(match && pathname.endsWith("/settings"))) {
     return json(res, 405, { error: "method_not_allowed" });
   }
-  if (req.method === "POST" && !(match && pathname.endsWith("/filters"))) {
+  if (req.method === "POST" && !((match && pathname.endsWith("/filters")) || userAction)) {
     return json(res, 405, { error: "method_not_allowed" });
   }
   if (req.method === "DELETE" && !filterDelete) {

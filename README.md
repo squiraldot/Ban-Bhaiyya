@@ -149,3 +149,38 @@ warning limit. Administrators remain exempt from automatic moderation.
 
 Flood protection remains a separate action because it is based on message
 frequency rather than message content.
+
+
+## Phase 10 — User Management
+
+The admin dashboard now includes a **Users** section.
+
+Supported actions:
+
+```text
+Load User
+Warn
+Remove Warning
+Reset Warnings
+Mute
+Unmute
+Ban
+Unban
+```
+
+A user profile includes:
+
+- Telegram account/status when accessible
+- Current warning count
+- Reputation score
+- Warning history
+- Moderation history
+
+Dashboard moderation actions are executed by the Telegram bot and audited in
+`ghostea_user_admin_actions`.
+
+Run the updated `database.sql` once in Supabase before using the new audit
+table.
+
+For safety, the bot refuses dashboard/automatic ban, mute, or warning actions
+against Telegram administrators/owners.

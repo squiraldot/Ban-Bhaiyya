@@ -53,3 +53,8 @@ HEALTHCHECK_INTERVAL_SECONDS = 300
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY", "").strip()
 DASHBOARD_ORIGIN = os.getenv("DASHBOARD_ORIGIN", "").strip()
 PORT = int(os.getenv("PORT", "10000"))
+
+# ============================================================
+# PHASE 10 — User management
+# ============================================================
+USER_MANAGEMENT_MAX_LOGS = 100

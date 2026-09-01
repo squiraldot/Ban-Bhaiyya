@@ -38,6 +38,7 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
       <button class="navbtn" data-section="filters">🧹 Filters</button>
       <button class="navbtn" data-section="analytics">📈 Analytics</button>
       <button class="navbtn" data-section="logs">📋 Moderation Logs</button>
+      <button class="navbtn" data-section="users">👤 Users</button>
     </aside>
 
     <div class="content">
@@ -83,6 +84,40 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
 
       <section id="logs" class="section">
         <div class="card"><div class="section-title"><h2>Moderation Logs</h2><button id="logsRefresh">Refresh</button></div><p id="logsMessage" class="muted">Select a group from Overview.</p><div class="scroll"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Reason</th><th>Details</th></tr></thead><tbody id="logRows"></tbody></table></div></div>
+
+      <section id="users" class="section">
+        <div class="card">
+          <div class="section-title"><h2>User Management</h2></div>
+          <p class="muted">Enter a Telegram numeric user ID, inspect moderation history, and apply admin actions.</p>
+          <div class="grid3" style="margin-top:12px">
+            <div class="field"><label>User ID</label><input id="userId" inputmode="numeric" placeholder="e.g. 123456789"></div>
+            <div class="field"><label>Mute duration (minutes)</label><input id="userMinutes" type="number" min="1" max="10080" value="10"></div>
+            <div class="field"><label>Warning reason</label><input id="userReason" maxlength="500" value="Dashboard action"></div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="loadUser" class="primary">Load User</button>
+            <button data-user-action="warn">⚠️ Warn</button>
+            <button data-user-action="unwarn">↩️ Remove Warning</button>
+            <button data-user-action="reset_warnings">♻️ Reset Warnings</button>
+            <button data-user-action="mute">🔇 Mute</button>
+            <button data-user-action="unmute">🔊 Unmute</button>
+            <button data-user-action="ban" class="danger">🚫 Ban</button>
+            <button data-user-action="unban">✅ Unban</button>
+          </div>
+          <p id="userMessage" class="muted"></p>
+          <div id="userProfile" class="hidden">
+            <div class="stats" style="margin-top:12px">
+              <div class="stat"><strong id="uWarnings">—</strong><span>Warnings</span></div>
+              <div class="stat"><strong id="uRep">—</strong><span>Reputation</span></div>
+              <div class="stat"><strong id="uStatus">—</strong><span>Telegram status</span></div>
+              <div class="stat"><strong id="uUser">—</strong><span>User</span></div>
+            </div>
+            <div class="grid2" style="margin-top:12px">
+              <div class="setting"><h3>Warning history</h3><div id="uWarningHistory" class="scroll"></div></div>
+              <div class="setting"><h3>Moderation history</h3><div id="uLogs" class="scroll"></div></div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   </div>
@@ -105,9 +140,42 @@ async function loadFilters(){if(!selectedGroup)return;try{const d=await api('/ap
 async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function deleteFilter(id){if(!confirm('Delete this custom filter?'))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 $('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp()}catch(e){$('loginError').textContent='❌ '+e.message}};
-$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('refreshBtn').onclick=loadGroups;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('refreshBtn').onclick=loadGroups;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
 document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active')});
 fetch('/api/ghostea?path=%2Fapi%2Fhealth').then(r=>{if(r.status===401)showLogin();else if(r.ok)showApp();else showLogin()}).catch(showLogin);
+
+async function loadUser(){
+  if(!selectedGroup){$('userMessage').textContent='Select a group first.';return}
+  const id=$('userId').value.trim();
+  if(!/^-?\d+$/.test(id)){ $('userMessage').textContent='Enter a numeric Telegram user ID.'; return }
+  try{
+    const d=await api('/api/groups/'+selectedGroup+'/users/'+id+'/profile');
+    $('userProfile').classList.remove('hidden');
+    $('uWarnings').textContent=d.warnings??0;
+    $('uRep').textContent=d.reputation?.score??0;
+    $('uStatus').textContent=d.telegram?.status||'not found';
+    const u=d.telegram?.user;
+    $('uUser').textContent=u?(u.username?'@'+u.username:(u.first_name||u.id)):'—';
+    $('uWarningHistory').innerHTML=(d.warning_history||[]).map(x=>`<div class="notice"><b>${esc(x.reason||'—')}</b><br><span class="muted">${esc(x.created_at||'')}</span></div>`).join('')||'<p class="muted">No warning history.</p>';
+    $('uLogs').innerHTML=(d.moderation_logs||[]).map(x=>`<div class="notice"><b>${esc(x.action||'—')}</b> · ${esc(x.reason||'')}<br><span class="muted">${esc(x.created_at||'')}</span></div>`).join('')||'<p class="muted">No moderation history.</p>';
+    $('userMessage').textContent='✅ User loaded';
+  }catch(e){$('userMessage').textContent='❌ '+e.message}
+}
+async function userAction(action){
+  if(!selectedGroup){$('userMessage').textContent='Select a group first.';return}
+  const id=$('userId').value.trim();
+  if(!/^-?\d+$/.test(id)){ $('userMessage').textContent='Enter a numeric Telegram user ID.'; return }
+  if((action==='ban') && !confirm('Permanently ban this user?'))return;
+  if((action==='reset_warnings') && !confirm('Reset all warnings for this user?'))return;
+  try{
+    const body={user_id:Number(id),action,reason:$('userReason').value.trim(),minutes:Number($('userMinutes').value||10)};
+    await api('/api/groups/'+selectedGroup+'/users',{method:'POST',body:JSON.stringify(body)});
+    $('userMessage').textContent='✅ '+action+' completed';
+    await loadUser();
+    await loadGroups();
+  }catch(e){$('userMessage').textContent='❌ '+e.message}
+}
+
 </script>
 </body>
 </html>
