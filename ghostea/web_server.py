@@ -299,7 +299,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if path.startswith("/api/groups/") and "/users/" in path and path.endswith("/profile"):
                 if not self._require_read(): return
                 parts = path.split("/")
-                if len(parts) != 6:
+                # /api/groups/<chat_id>/users/<user_id>/profile
+                # has 7 segments after split() because of the leading slash.
+                if len(parts) != 7 or parts[4] != "users" or parts[6] != "profile":
                     return _json(self, 404, {"error": "not_found"})
                 chat_id = int(parts[3])
                 user_id = int(parts[5])

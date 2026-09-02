@@ -445,6 +445,55 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #app .table td,#app .table th{border-bottom:1px solid rgba(255,255,255,.055);padding:12px 13px}
 #app .table tbody tr:hover td{background:rgba(255,255,255,.022)}
 
+/* Risk Center mobile containment and responsive table layout. */
+#risk .setting{min-width:0;width:100%;overflow:hidden}
+#risk .scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:auto}
+#risk .bar{width:100%;max-width:100%}
+#risk .section-title>.row{min-width:0}
+#risk .section-title>.row>*{min-width:0}
+@media(max-width:720px){
+  #risk .card{overflow:hidden}
+  #risk .setting{padding:14px}
+  #risk .stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #risk .stat{min-width:0;overflow:hidden}
+  #risk .stat strong,#risk .stat span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #risk .scroll{border-radius:11px}
+
+  /* Top-risk users become compact mobile records instead of a 620px table. */
+  #risk .scroll:has(#riskRows){overflow:visible}
+  #risk .scroll:has(#riskRows) .table{min-width:0;width:100%;display:block}
+  #risk .scroll:has(#riskRows) .table thead{display:none}
+  #risk .scroll:has(#riskRows) .table tbody,
+  #risk .scroll:has(#riskRows) .table tr,
+  #risk .scroll:has(#riskRows) .table td{display:block;width:100%}
+  #risk .scroll:has(#riskRows) .table tr{
+    padding:10px 12px;
+    border-bottom:1px solid rgba(255,255,255,.055);
+  }
+  #risk .scroll:has(#riskRows) .table tr:last-child{border-bottom:0}
+  #risk .scroll:has(#riskRows) .table td{
+    border:0!important;padding:3px 0!important;
+    display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+    text-align:right;
+  }
+  #risk .scroll:has(#riskRows) .table td:before{
+    color:#77847e;font-size:9px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;text-align:left;
+  }
+  #risk .scroll:has(#riskRows) .table td:nth-child(1):before{content:"User"}
+  #risk .scroll:has(#riskRows) .table td:nth-child(2):before{content:"Score"}
+  #risk .scroll:has(#riskRows) .table td:nth-child(3):before{content:"Level"}
+  #risk .scroll:has(#riskRows) .table td:nth-child(4):before{content:"Warnings"}
+  #risk .scroll:has(#riskRows) .table td:nth-child(5):before{content:"Events"}
+}
+@media(max-width:380px){
+  #risk .stats{grid-template-columns:1fr 1fr!important}
+  #risk .stat{padding:11px}
+  #risk .stat strong{font-size:18px}
+  #risk .stat span{font-size:9px}
+  #risk .setting{padding:12px}
+}
+
 /* Custom dialogs */
 dialog{
   width:min(480px,calc(100vw - 32px));max-width:480px;padding:0;border:1px solid rgba(255,255,255,.11);
@@ -858,7 +907,7 @@ async function loadFilters(token=selectionToken){const group=selectedGroup;if(!g
 async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function deleteFilter(id){if(!await gxConfirm('Delete this custom filter?',{title:'Delete filter',ok:'Delete',danger:true}))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 $('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp(d.admin)}catch(e){$('loginError').textContent='❌ '+e.message}};
-$('username').addEventListener('keydown',e=>{if(e.key==='Enter')$('password').focus()});$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('adminsRefresh').onclick=loadAdmins;$('createAdmin').onclick=createAdmin;$('refreshBtn').onclick=loadGroups;$('riskRefresh').onclick=loadRisk;$('usersRefresh').onclick=loadUsers;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
+$('username').addEventListener('keydown',e=>{if(e.key==='Enter')$('password').focus()});$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('adminsRefresh').onclick=loadAdmins;$('createAdmin').onclick=createAdmin;$('refreshBtn').onclick=loadGroups;$('riskRefresh').onclick=loadRisk;$('usersRefresh').onclick=loadUsers;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;$('userId').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadUser()}});document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
 document.querySelectorAll('.navbtn').forEach(b=>b.onclick=async()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active');if(b.dataset.section==='users')await loadUsers();if(b.dataset.section==='risk')await loadRisk();if(b.dataset.section==='admins')await loadAdmins()});
 
 async function loadAdmins(){
@@ -935,6 +984,7 @@ async function loadUser(){
   if(!selectedGroup){$('userMessage').textContent='Select a group first.';return}
   const id=$('userId').value.trim();
   if(!/^-?\d+$/.test(id)){ $('userMessage').textContent='Enter a numeric Telegram user ID.'; return }
+  $('userMessage').textContent='Loading user…';
   try{
     const d=await api('/api/groups/'+selectedGroup+'/users/'+id+'/profile');
     $('userProfile').classList.remove('hidden');

@@ -518,8 +518,11 @@ class Phase3Store:
                 },
             )
             ids = [int(row["user_id"]) for row in directory if row.get("user_id") is not None]
+            # A migrated/new directory can exist but still be empty. Fall
+            # through to legacy activity sources instead of showing a false
+            # "No users recorded yet" state.
             if not ids:
-                return []
+                raise RuntimeError("user_directory_empty")
             id_filter = "in.(" + ",".join(str(x) for x in ids) + ")"
 
             warnings = await self._call(
@@ -587,6 +590,16 @@ class Phase3Store:
                 "ghostea_moderation_logs",
                 {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "200"},
             )
+            joins = await self._call(
+                self.db.select,
+                "ghostea_join_events",
+                {"chat_id": f"eq.{chat_id}", "order": "joined_at.desc", "limit": "200"},
+            )
+            reps = await self._call(
+                self.db.select,
+                "ghostea_reputation",
+                {"chat_id": f"eq.{chat_id}", "select": "user_id,score", "limit": "500"},
+            )
             users = {}
             def ensure(uid, ts=None):
                 item = users.setdefault(str(uid), {
@@ -604,6 +617,14 @@ class Phase3Store:
                 uid = row.get("user_id")
                 if uid is not None:
                     ensure(uid, row.get("created_at"))["actions"] += 1
+            for row in joins:
+                uid = row.get("user_id")
+                if uid is not None:
+                    ensure(uid, row.get("joined_at"))
+            for row in reps:
+                uid = row.get("user_id")
+                if uid is not None:
+                    ensure(uid)["reputation"] = int(row.get("score", 0) or 0)
             return sorted(
                 users.values(),
                 key=lambda x: (x["last_activity"] or "", x["warnings"], x["actions"]),
