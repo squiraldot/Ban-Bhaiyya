@@ -135,7 +135,8 @@ export default async function handler(req, res) {
   const pathname = parsedPath.pathname;
   const match = pathname.match(/^\/api\/groups\/(-?\d+)\/(settings|analytics|logs|filters|risk)$/);
   const filterDelete = pathname.match(/^\/api\/groups\/(-?\d+)\/filters\/(\d+)$/);
-  const userProfile = pathname.match(/^\/api\/groups\/(-?\d+)\/users\/(-?\d+)\/profile$/);\n  const userList = pathname.match(/^\/api\/groups\/(-?\d+)\/users$/);
+  const userProfile = pathname.match(/^\/api\/groups\/(-?\d+)\/users\/(-?\d+)\/profile$/);
+  const userList = pathname.match(/^\/api\/groups\/(-?\d+)\/users$/);
   const userAction = pathname.match(/^\/api\/groups\/(-?\d+)\/users$/);
   const allowed = ALLOWED_GET.has(pathname) || Boolean(match) || Boolean(filterDelete) || Boolean(userProfile) || Boolean(userList) || Boolean(userAction);
   if (!allowed) return json(res, 404, { error: "not_found" });
