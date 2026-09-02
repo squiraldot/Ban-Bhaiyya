@@ -23,6 +23,12 @@ async def reputation_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if update.message and update.message.reply_to_message:
         target = update.message.reply_to_message.from_user
+        if target.id != update.effective_user.id:
+            try:
+                if not await is_admin(chat, update.effective_user.id):
+                    target = update.effective_user
+            except Exception:
+                target = update.effective_user
 
     store = context.application.bot_data["phase3_store"]
     rep = await store.get_reputation(chat.id, target.id)
@@ -40,7 +46,6 @@ async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query or not query.data.startswith("verify:"):
         return
 
-    await query.answer()
     token = query.data.split(":", 1)[1]
     chat = query.message.chat
     user = query.from_user
@@ -49,13 +54,17 @@ async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ok = await verification.check(chat.id, user.id, token)
 
     if not ok:
-        await query.answer("❌ Verification expired/invalid.", show_alert=True)
+        await query.answer("Verification expired or invalid.", show_alert=True)
         return
 
     try:
         await unmute_member(chat, user.id)
     except Exception:
         logger.exception("Could not restore verified member permissions")
+        await query.answer("Verification succeeded, but permissions could not be restored. Please contact an admin.", show_alert=True)
+        return
+
+    await query.answer("Verified successfully.")
 
     try:
         await query.message.delete()
@@ -66,9 +75,12 @@ async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat.id, user.id
     )
 
-    await query.message.chat.send_message(
-        f"✅ {display_name(user)} verified successfully!"
-    )
+    try:
+        await query.message.chat.send_message(
+            f"✅ {display_name(user)} verified successfully!"
+        )
+    except Exception:
+        logger.exception("Verification success message failed")
 
 
 async def verification_for_member(chat, member, context):
@@ -96,11 +108,9 @@ async def verification_for_member(chat, member, context):
     ]])
 
     try:
-        until_date = expires
         await chat.restrict_member(
             user_id=member.id,
             permissions=mute_member_permissions(),
-            until_date=until_date,
         )
         await chat.send_message(
             f"🛡️ {display_name(member)}, please verify that you're human.\n"

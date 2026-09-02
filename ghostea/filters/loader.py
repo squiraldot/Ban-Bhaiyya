@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from pathlib import Path
 
 
@@ -28,7 +29,14 @@ class AbuseFilter:
 
     @staticmethod
     def normalize(text: str) -> str:
-        return re.sub(r"[^a-z0-9]+", "", text.casefold())
+        # Keep Unicode letters/numbers (Hindi, Cyrillic, Arabic, etc.) while
+        # removing separators. The previous ASCII-only normalizer silently
+        # turned non-Latin filters into an empty string.
+        folded = unicodedata.normalize("NFKC", str(text)).casefold()
+        return "".join(
+            ch for ch in folded
+            if unicodedata.category(ch)[0] in ("L", "N", "M")
+        )
 
     def find(self, text: str) -> str | None:
         normalized = self.normalize(text)
@@ -39,8 +47,8 @@ class AbuseFilter:
             # For short filters, require an actual word boundary in
             # the original text to reduce accidental matches.
             if len(normalized_word) <= 3:
-                pattern = rf"(?<![a-z0-9]){re.escape(normalized_word)}(?![a-z0-9])"
-                if re.search(pattern, text.casefold()):
+                pattern = rf"(?<!\w){re.escape(normalized_word)}(?!\w)"
+                if re.search(pattern, text.casefold(), flags=re.UNICODE):
                     return word
                 continue
 

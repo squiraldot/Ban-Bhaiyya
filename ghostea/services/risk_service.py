@@ -1,4 +1,4 @@
-import math
+import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -211,10 +211,12 @@ class RiskService:
             })
 
         result.sort(key=lambda x: (x["risk_score"], x["events"]), reverse=True)
+        high_critical = sum(1 for item in result if item["risk_level"] in ("high", "critical"))
         return {
             "days": days,
             "users": result[:limit],
             "total_users": len(result),
+            "high_critical_users": high_critical,
             "category_breakdown": dict(categories),
             "sampled_events": len(logs) + len(warnings),
             "partial": bool(errors),
@@ -223,16 +225,72 @@ class RiskService:
         }
 
     async def user(self, chat_id, user_id, days=30):
-        report = await self.report(chat_id, days=days, limit=50)
-        for item in report["users"]:
-            if int(item["user_id"]) == int(user_id):
-                return item
+        """Calculate risk directly for one user, without the top-user cap."""
+        days = max(1, min(int(days), 90))
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        now = datetime.now(timezone.utc)
+        logs = await self.store._call(
+            self.store.db.select,
+            "ghostea_moderation_logs",
+            {
+                "chat_id": f"eq.{chat_id}",
+                "user_id": f"eq.{int(user_id)}",
+                "created_at": f"gte.{since}",
+                "select": "user_id,action,reason,details,created_at",
+                "order": "created_at.desc",
+                "limit": "1000",
+            },
+        )
+        warnings = await self.store._call(
+            self.store.db.select,
+            "ghostea_warning_history",
+            {
+                "chat_id": f"eq.{chat_id}",
+                "user_id": f"eq.{int(user_id)}",
+                "created_at": f"gte.{since}",
+                "select": "user_id,reason,source,created_at",
+                "order": "created_at.desc",
+                "limit": "1000",
+            },
+        )
+
+        score = 0.0
+        events = 0
+        warning_count = 0
+        categories = Counter()
+        last_activity = None
+        for row in logs:
+            score += self._event_weight(row) * self._decay(row.get("created_at"), now)
+            events += 1
+            category = self._category(row.get("action"), row.get("reason"), row.get("details"))
+            categories[category] += 1
+            if not last_activity or str(row.get("created_at", "")) > str(last_activity):
+                last_activity = row.get("created_at")
+        for row in warnings:
+            score += 20 * self._decay(row.get("created_at"), now)
+            events += 1
+            warning_count += 1
+            category = self._category("warning", row.get("reason"), row.get("source"))
+            categories[category] += 1
+            if not last_activity or str(row.get("created_at", "")) > str(last_activity):
+                last_activity = row.get("created_at")
+
+        score = max(0, min(100, round(score)))
+        if score >= 75:
+            level = "critical"
+        elif score >= 50:
+            level = "high"
+        elif score >= 25:
+            level = "medium"
+        else:
+            level = "low"
         return {
             "user_id": int(user_id),
-            "risk_score": 0,
-            "risk_level": "low",
-            "events": 0,
-            "warnings": 0,
-            "categories": {},
-            "last_activity": None,
+            "risk_score": score,
+            "risk_level": level,
+            "events": events,
+            "warnings": warning_count,
+            "categories": dict(categories),
+            "last_activity": last_activity,
         }
+

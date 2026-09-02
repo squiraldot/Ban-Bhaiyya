@@ -1,7 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ghostea.config import DEFAULT_MAX_WARNINGS
 from ghostea.services.telegram_service import is_admin
 from ghostea.utils import display_name, get_target_user
 
@@ -41,13 +40,14 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             target = requester
 
-    count = await context.application.bot_data["phase3_store"].get_warning_count(
-        chat.id, target.id
-    )
+    store = context.application.bot_data["phase3_store"]
+    count = await store.get_warning_count(chat.id, target.id)
+    settings = await store.get_settings(chat.id)
+    limit = int(settings.get("max_warnings", 3))
 
     await update.effective_message.reply_text(
         f"⚠️ {display_name(target)}\n"
-        f"Warnings: {count}/{DEFAULT_MAX_WARNINGS}"
+        f"Warnings: {count}/{limit}"
     )
 
 
@@ -85,10 +85,19 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_chat:
+    chat = update.effective_chat
+    requester = update.effective_user
+    if not chat or not requester:
         return
 
     target = target_from_update(update)
+    if target.id != requester.id:
+        try:
+            if not await is_admin(chat, requester.id):
+                target = requester
+        except Exception:
+            target = requester
+
     store = context.application.bot_data["phase3_store"]
     rows = await store.get_history(update.effective_chat.id, target.id, 10)
 

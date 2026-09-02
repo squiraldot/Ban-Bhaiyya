@@ -47,23 +47,19 @@ class UserManagementService:
         return data
 
     async def _guard_target(self, chat_id, target_user_id):
-        try:
-            if await is_admin(await self.bot.get_chat(chat_id), target_user_id):
-                return False, "target_is_admin"
-        except Exception:
-            # get_chat() may fail in some Telegram contexts; fall through to
-            # get_chat_member below.
-            pass
-
+        # Fail closed when Telegram cannot tell us the target's status. A
+        # transient API failure must never become permission to moderate an
+        # unknown account that could be an administrator.
         try:
             member = await self.bot.get_chat_member(chat_id, target_user_id)
-            if member.status in (
-                ChatMemberStatus.ADMINISTRATOR,
-                ChatMemberStatus.OWNER,
-            ):
-                return False, "target_is_admin"
         except Exception:
-            pass
+            return False, "target_lookup_failed"
+
+        if member.status in (
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER,
+        ):
+            return False, "target_is_admin"
 
         return True, ""
 

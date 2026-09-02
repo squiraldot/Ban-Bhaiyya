@@ -256,6 +256,22 @@ Phase 13 fixes the Admin Dashboard Users and Risk Center data flow.
 - Existing moderation behavior is unchanged.
 
 
+## Post-Phase 14 Reliability Fixes
+
+The current build also includes a reliability/security pass: 
+- dashboard async requests are executed on the Telegram application's event loop instead of creating a second event loop per HTTP request;
+- warning decay is persistent and respects manual warning removal/reset;
+- verification callbacks fail closed, are answered only once, and keep members restricted until the expiry worker makes the ban decision;
+- verified/unmuted members inherit the group's default permissions instead of receiving an unnecessarily broad permission set;
+- anti-raid recovery does not overwrite newer administrator permission changes;
+- risk calculations include targeted user lookups and exact headline analytics counts;
+- the known-user directory tracks normal message activity with throttled writes;
+- dashboard filter regex values are validated before storage;
+- dashboard moderation audit records retain the actual dashboard administrator ID;
+- warning/history privacy is restricted so normal members can inspect only their own records.
+
+If the database was created before warning-decay support, run the updated `database.sql` once. It adds the `active` flag/index to `ghostea_warning_history` safely.
+
 ## Phase 14 — Scale + RBAC Admin Dashboard
 
 - Added database-backed dashboard admins with `super_admin`, `admin`, `moderator`, and `viewer` roles.

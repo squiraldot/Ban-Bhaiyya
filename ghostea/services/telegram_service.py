@@ -52,9 +52,13 @@ async def mute_member(chat, user_id: int, minutes: int) -> None:
 
 
 async def unmute_member(chat, user_id: int) -> None:
+    # Restore the group's default member permissions instead of blindly
+    # granting every permission. This respects groups that intentionally
+    # disable polls, topic management, link previews, etc.
+    permissions = getattr(chat, "permissions", None) or unmuted_permissions()
     await chat.restrict_member(
         user_id=user_id,
-        permissions=unmuted_permissions(),
+        permissions=permissions,
     )
 
 

@@ -292,8 +292,6 @@ button.danger:hover{border-color:rgba(255,113,128,.65);background:rgba(255,113,1
   .topbar #status{display:none}
   .topbar .row{gap:5px}
   .topbar #refreshBtn,.topbar #logoutBtn{font-size:0;width:38px;padding:9px;min-height:38px}
-  .topbar #refreshBtn:before{content:"↻";font-size:17px}
-  .topbar #logoutBtn:before{content:"⇥";font-size:17px}
   .sidebar{top:55px;margin-bottom:10px;padding:5px}
   .navbtn{min-width:43px;padding:9px 10px}
   .card{padding:14px;border-radius:14px}
@@ -527,6 +525,7 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
   #app .grid2,#app .grid3{grid-template-columns:1fr!important}
   #app .section-title>.row{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:7px}
   #app .section-title>.row>*{width:100%}
+  #app .section-title>.row .gx-select-wrap{width:100%;min-width:0}
   #app .scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
   #app .table{min-width:620px}
   #login{width:100%;min-height:100svh;margin:0!important;border:0;border-radius:0;padding:26px 16px!important;display:flex;flex-direction:column;justify-content:center;box-shadow:none}
@@ -566,6 +565,7 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
   stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
 }
 #app>.topbar .topbar-action span{font-size:12px;font-weight:750}
+#app>.topbar .topbar-action:before{content:none!important}
 #app>.topbar #roleBadge{
   order:0;margin-left:0;padding:7px 11px;max-width:150px;overflow:hidden;
   text-overflow:ellipsis;text-transform:capitalize;
@@ -596,7 +596,7 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
   min-height:1px!important;margin:-1px!important;padding:0!important;border:0!important;
   opacity:0!important;pointer-events:none!important;clip:rect(0 0 0 0)!important;
 }
-.gx-select-wrap{position:relative;width:100%;min-width:0}
+.gx-select-wrap{position:relative;min-width:0;flex:1 1 120px}
 .gx-select-trigger{
   width:100%;min-height:42px;padding:10px 38px 10px 12px;
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -706,7 +706,6 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
             <div class="setting"><label>Repeated window (seconds)</label><input data-key="repeated_message_window_seconds" type="number" min="5" max="3600"></div>
             <div class="setting"><label>Mention spam limit</label><input data-key="mention_spam_limit" type="number" min="2" max="100"></div>
             <div class="setting"><label>Warning decay (days)</label><input data-key="warning_decay_days" type="number" min="1" max="3650"></div>
-            <div class="setting"><label>Cleanup max age (days)</label><input data-key="cleanup_max_age_days" type="number" min="1" max="3650"></div>
           </div>
           <div class="grid2" style="margin-top:12px">
             <div class="setting"><label>Blocked-link action</label><select data-key="blocked_link_action"><option value="delete">Delete</option><option value="warn">Warn</option></select></div>
@@ -815,10 +814,18 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
 </section>
 </main>
 <script>
-const $=id=>document.getElementById(id); let selectedGroup=null; let settings=null;
-const riskLevels={low:'🟢 Low',medium:'🟡 Medium',high:'🟠 High',critical:'🔴 Critical'};
-const switchKeys=[['abuse_filter_enabled','Abuse'],['spam_filter_enabled','Spam'],['link_filter_enabled','Links'],['flood_protection_enabled','Flood'],['welcome_enabled','Welcome'],['antiraid_enabled','Anti-Raid'],['verification_enabled','Verification'],['warning_decay_enabled','Warning decay'],['auto_cleanup_enabled','Auto cleanup']];
-async function api(path,options={}){const r=await fetch('/api/ghostea?path='+encodeURIComponent(path),{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||'Request failed');return d}
+const $=id=>document.getElementById(id); let selectedGroup=null; let settings=null; let selectionToken=0;
+const riskLevels={low:'Low',medium:'Medium',high:'High',critical:'Critical'};
+const switchKeys=[['abuse_filter_enabled','Abuse'],['spam_filter_enabled','Spam'],['link_filter_enabled','Links'],['flood_protection_enabled','Flood'],['welcome_enabled','Welcome'],['antiraid_enabled','Anti-Raid'],['verification_enabled','Verification'],['warning_decay_enabled','Warning decay']];
+async function api(path,options={}){
+  let r;
+  try{r=await fetch('/api/ghostea?path='+encodeURIComponent(path),{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}})}
+  catch(e){throw new Error('Network error. Check your connection.')}
+  let d={};try{d=await r.json()}catch{}
+  if(r.status===401){showLogin();throw new Error('Session expired. Please sign in again.')}
+  if(!r.ok)throw new Error(d.error||'Request failed');
+  return d
+}
 function showLogin(){ $('login').classList.remove('hidden');$('app').classList.add('hidden') }
 function showApp(admin){ $('login').classList.add('hidden');$('app').classList.remove('hidden'); applyRole(admin?.role||'viewer'); loadGroups() }
 function applyRole(role){
@@ -841,13 +848,13 @@ function applyRole(role){
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function loadGroups(){try{const h=await api('/api/health');$('status').textContent='🟢 API online • DB '+(h.database?'OK':'ERROR');$('status').className='badge ok';const d=await api('/api/groups');const groups=d.groups||[];$('groups').innerHTML='';if(!groups.length){$('groups').innerHTML='<div class="notice muted">No configured groups yet. Add the bot to a group and let it process a message.</div>';return}for(const g of groups){const c=document.createElement('div');c.className='card';c.innerHTML=`<div class="section-title"><h3>Group ${esc(g.chat_id)}</h3><span class="badge">limit ${Number(g.max_warnings||0)}</span></div><p class="muted">Abuse ${g.abuse_filter_enabled?'ON':'OFF'} · Spam ${g.spam_filter_enabled?'ON':'OFF'} · Anti-Raid ${g.antiraid_enabled?'ON':'OFF'}</p><button data-group="${esc(g.chat_id)}" class="selectGroup">Manage group</button>`;$('groups').appendChild(c)}document.querySelectorAll('.selectGroup').forEach(b=>b.onclick=()=>selectGroup(b.dataset.group));if(selectedGroup)selectGroup(selectedGroup)}catch(e){$('status').textContent='🔴 '+e.message;$('status').className='badge error'}}
-async function selectGroup(id){selectedGroup=id;$('selectedGroup').textContent=id;$('overviewStats').classList.remove('hidden');await loadSettings();await loadAnalytics();await loadLogs();await loadFilters();await loadUsers();await loadRisk();}
-async function loadSettings(){if(!selectedGroup)return;try{settings=await api('/api/groups/'+selectedGroup+'/settings');$('settingsForm').classList.remove('hidden');$('settingsMessage').textContent='Editing group '+selectedGroup;document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;if(settings[k]!==undefined&&el.type!=='button')el.value=settings[k]});$('switches').innerHTML='';for(const [key,label] of switchKeys){const wrap=document.createElement('div');wrap.className='row setting';wrap.style.flex='1 1 180px';wrap.innerHTML=`<span>${label}</span><button type="button" class="switch ${settings[key]?'on':''}" data-switch="${key}" aria-label="Toggle ${label}"><i></i></button>`;$('switches').appendChild(wrap)}document.querySelectorAll('[data-switch]').forEach(b=>b.onclick=()=>{const k=b.dataset.switch;settings[k]=!settings[k];b.classList.toggle('on',settings[k])});$('ovLimit').textContent=settings.max_warnings??'—'}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
+async function selectGroup(id){selectionToken++;const token=selectionToken;selectedGroup=String(id);$('selectedGroup').textContent=selectedGroup;$('overviewStats').classList.remove('hidden');await loadSettings(token);await loadAnalytics(token);await loadLogs(token);await loadFilters(token);await loadUsers(token);await loadRisk(token);}
+async function loadSettings(token=selectionToken){const group=selectedGroup;if(!group)return;try{const next=await api('/api/groups/'+group+'/settings');if(group!==selectedGroup||token!==selectionToken)return;settings=next;$('settingsForm').classList.remove('hidden');$('settingsMessage').textContent='Editing group '+selectedGroup;document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;if(settings[k]!==undefined&&el.type!=='button')el.value=settings[k]});$('switches').innerHTML='';for(const [key,label] of switchKeys){const wrap=document.createElement('div');wrap.className='row setting';wrap.style.flex='1 1 180px';wrap.innerHTML=`<span>${label}</span><button type="button" class="switch ${settings[key]?'on':''}" data-switch="${key}" aria-label="Toggle ${label}"><i></i></button>`;$('switches').appendChild(wrap)}document.querySelectorAll('[data-switch]').forEach(b=>b.onclick=()=>{const k=b.dataset.switch;settings[k]=!settings[k];b.classList.toggle('on',settings[k])});$('ovLimit').textContent=settings.max_warnings??'—'}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
 async function saveSettings(){if(!selectedGroup)return;const payload={};document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;payload[k]=el.type==='number'?Number(el.value):el.value});document.querySelectorAll('[data-switch]').forEach(b=>payload[b.dataset.switch]=b.classList.contains('on'));try{await api('/api/groups/'+selectedGroup+'/settings',{method:'PATCH',body:JSON.stringify(payload)});$('settingsMessage').textContent='✅ Settings saved';await loadGroups()}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
-async function loadAnalytics(){if(!selectedGroup)return;try{const days=Number($('analyticsDays').value||7);const d=await api('/api/groups/'+selectedGroup+'/analytics?days='+days);$('analyticsPanel').classList.remove('hidden');$('analyticsMessage').textContent='Group '+selectedGroup;$('anJoins').textContent=d.joins??0;$('anWarnings').textContent=d.warnings??0;$('anActions').textContent=d.actions??0;$('anDays').textContent=(d.days??days)+'d';renderBars('warningBars',d.warning_reasons||{});renderBars('actionBars',d.actions_by_type||{});$('ovJoins').textContent=d.joins??0;$('ovWarnings').textContent=d.warnings??0;$('ovActions').textContent=d.actions??0}catch(e){$('analyticsMessage').textContent='❌ '+e.message}}
+async function loadAnalytics(token=selectionToken){const group=selectedGroup;if(!group)return;try{const days=Number($('analyticsDays').value||7);const d=await api('/api/groups/'+group+'/analytics?days='+days);if(group!==selectedGroup||token!==selectionToken)return;$('analyticsPanel').classList.remove('hidden');$('analyticsMessage').textContent='Group '+selectedGroup+(d.breakdown_partial?' · breakdown limited to latest 1,000 events':'');$('anJoins').textContent=d.joins??0;$('anWarnings').textContent=d.warnings??0;$('anActions').textContent=d.actions??0;$('anDays').textContent=(d.days??days)+'d';renderBars('warningBars',d.warning_reasons||{});renderBars('actionBars',d.actions_by_type||{});$('ovJoins').textContent=d.joins??0;$('ovWarnings').textContent=d.warnings??0;$('ovActions').textContent=d.actions??0}catch(e){$('analyticsMessage').textContent='❌ '+e.message}}
 function renderBars(id,obj){const root=$(id);root.innerHTML='';const entries=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,8);if(!entries.length){root.innerHTML='<p class="muted">No data.</p>';return}const max=Math.max(...entries.map(x=>Number(x[1])));for(const [k,v] of entries){const el=document.createElement('div');el.style.margin='10px 0';el.innerHTML=`<div class="row" style="justify-content:space-between"><span>${esc(k)}</span><span class="badge">${Number(v)}</span></div><div class="bar"><i style="width:${max?Math.round(Number(v)/max*100):0}%"></i></div>`;root.appendChild(el)}}
-async function loadLogs(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/logs?limit=100');const rows=d.logs||[];$('logRows').innerHTML=rows.map(r=>`<tr><td>${esc(r.created_at||'—')}</td><td>${esc(r.user_id||'—')}</td><td><span class="badge">${esc(r.action)}</span></td><td>${esc(r.reason||'—')}</td><td>${esc(r.details||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No moderation logs.</td></tr>';$('logsMessage').textContent='Group '+selectedGroup}catch(e){$('logsMessage').textContent='❌ '+e.message}}
-async function loadFilters(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/filters');$('filterRows').innerHTML=(d.filters||[]).map(r=>`<tr><td>${esc(r.filter_type)}</td><td>${esc(r.value)}</td><td><button class="danger deleteFilter" data-id="${esc(r.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="3" class="muted">No custom filters.</td></tr>';document.querySelectorAll('.deleteFilter').forEach(b=>b.onclick=()=>deleteFilter(b.dataset.id))}catch(e){$('filterMessage').textContent='❌ '+e.message}}
+async function loadLogs(token=selectionToken){const group=selectedGroup;if(!group)return;try{const d=await api('/api/groups/'+group+'/logs?limit=100');if(group!==selectedGroup||token!==selectionToken)return;const rows=d.logs||[];$('logRows').innerHTML=rows.map(r=>`<tr><td>${esc(r.created_at||'—')}</td><td>${esc(r.user_id||'—')}</td><td><span class="badge">${esc(r.action)}</span></td><td>${esc(r.reason||'—')}</td><td>${esc(r.details||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No moderation logs.</td></tr>';$('logsMessage').textContent='Group '+selectedGroup}catch(e){$('logsMessage').textContent='❌ '+e.message}}
+async function loadFilters(token=selectionToken){const group=selectedGroup;if(!group)return;try{const d=await api('/api/groups/'+group+'/filters');if(group!==selectedGroup||token!==selectionToken)return;$('filterRows').innerHTML=(d.filters||[]).map(r=>`<tr><td>${esc(r.filter_type)}</td><td>${esc(r.value)}</td><td><button class="danger deleteFilter" data-id="${esc(r.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="3" class="muted">No custom filters.</td></tr>';document.querySelectorAll('.deleteFilter').forEach(b=>b.onclick=()=>deleteFilter(b.dataset.id))}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function deleteFilter(id){if(!await gxConfirm('Delete this custom filter?',{title:'Delete filter',ok:'Delete',danger:true}))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 $('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp(d.admin)}catch(e){$('loginError').textContent='❌ '+e.message}};
@@ -857,17 +864,19 @@ document.querySelectorAll('.navbtn').forEach(b=>b.onclick=async()=>{document.que
 async function loadAdmins(){
   try{
     const d=await api('/api/auth/admins');
-    $('adminRows').innerHTML=(d.admins||[]).map(a=>`<tr><td><b>${esc(a.username)}</b><br><span class="muted">${esc(a.display_name)}</span></td><td>${esc(a.role)}</td><td>${a.enabled?'🟢 Enabled':'🔴 Disabled'}</td><td>${esc(a.last_login_at||'Never')}</td><td><button data-admin-edit="${a.id}">Edit</button> <button class="danger" data-admin-delete="${a.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No admins.</td></tr>';
-    document.querySelectorAll('[data-admin-edit]').forEach(b=>b.onclick=()=>editAdmin(b.dataset.adminEdit));
+    $('adminRows').innerHTML=(d.admins||[]).map(a=>`<tr><td><b>${esc(a.username)}</b><br><span class="muted">${esc(a.display_name)}</span></td><td>${esc(a.role)}</td><td>${a.enabled?'🟢 Enabled':'🔴 Disabled'}</td><td>${esc(a.last_login_at||'Never')}</td><td><button data-admin-edit="${a.id}" data-role="${esc(a.role)}" data-enabled="${a.enabled?'true':'false'}">Edit</button> <button class="danger" data-admin-delete="${a.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No admins.</td></tr>';
+    document.querySelectorAll('[data-admin-edit]').forEach(b=>b.onclick=()=>editAdmin(b.dataset.adminEdit,b.dataset.role,b.dataset.enabled==='true'));
     document.querySelectorAll('[data-admin-delete]').forEach(b=>b.onclick=()=>deleteAdmin(b.dataset.adminDelete));
   }catch(e){$('adminsMessage').textContent='❌ '+e.message}
 }
-async function editAdmin(id){
-  const role=await gxPrompt('Choose the role for this administrator.', 'admin', {title:'Edit administrator role', type:'select', options:[{value:'super_admin',label:'Super Admin'},{value:'admin',label:'Admin'},{value:'moderator',label:'Moderator'},{value:'viewer',label:'Viewer'}]});
+async function editAdmin(id,currentRole='admin',currentEnabled=true){
+  const role=await gxPrompt('Choose the role for this administrator.', currentRole, {title:'Edit administrator role', type:'select', options:[{value:'super_admin',label:'Super Admin'},{value:'admin',label:'Admin'},{value:'moderator',label:'Moderator'},{value:'viewer',label:'Viewer'}]});
   if(!role)return;
-  const enabled=await gxConfirm('Keep this administrator enabled?',{title:'Administrator status',ok:'Keep enabled'});
+  const enabledValue=await gxPrompt('Choose whether this administrator can sign in.', currentEnabled?'enabled':'disabled', {title:'Administrator status', type:'select', options:[{value:'enabled',label:'Enabled'},{value:'disabled',label:'Disabled'}], ok:'Apply'});
+  if(!enabledValue)return;
   const password=await gxPrompt('Leave blank to keep the current password.', '', {title:'Update password', type:'password', placeholder:'New password (optional)'});
-  const body={role,enabled};
+  if(password===null)return;
+  const body={role,enabled:enabledValue==='enabled'};
   if(password)body.password=password;
   try{await api('/api/auth/admins/'+id,{method:'PATCH',body:JSON.stringify(body)});$('adminsMessage').textContent='✅ Admin updated';await loadAdmins()}catch(e){$('adminsMessage').textContent='❌ '+e.message}
 }
@@ -893,27 +902,29 @@ fetch('/api/ghostea?path=%2Fapi%2Fhealth').then(async r=>{
   try{const me=await api('/api/auth/me');showApp(me.admin)}catch{showLogin()}
 }).catch(showLogin);
 
-async function loadRisk(){
-  if(!selectedGroup){$('riskMessage').textContent='Select a group first.';return}
+async function loadRisk(token=selectionToken){
+  const group=selectedGroup;if(!group){$('riskMessage').textContent='Select a group first.';return}
   try{
     const days=Number($('riskDays').value||7);
-    const d=await api('/api/groups/'+selectedGroup+'/risk?days='+days);
+    const d=await api('/api/groups/'+group+'/risk?days='+days);
+    if(group!==selectedGroup||token!==selectionToken)return;
     $('riskPanel').classList.remove('hidden');
     $('riskMessage').textContent='Advisory risk view for group '+selectedGroup;
     const users=d.users||[];
     $('riskUsers').textContent=d.total_users??users.length;
-    $('riskHigh').textContent=users.filter(x=>x.risk_level==='high'||x.risk_level==='critical').length;
-    $('riskEvents').textContent=users.reduce((n,x)=>n+Number(x.events||0),0);
+    $('riskHigh').textContent=d.high_critical_users??users.filter(x=>x.risk_level==='high'||x.risk_level==='critical').length;
+    $('riskEvents').textContent=d.sampled_events??users.reduce((n,x)=>n+Number(x.events||0),0);
     $('riskPeriod').textContent=(d.days??days)+'d';
     $('riskRows').innerHTML=users.slice(0,20).map(x=>`<tr><td>${esc(x.user_id)}</td><td><b>${Number(x.risk_score||0)}</b></td><td>${esc(riskLevels[x.risk_level]||x.risk_level||'—')}</td><td>${Number(x.warnings||0)}</td><td>${Number(x.events||0)}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No risk activity.</td></tr>';
     renderBars('riskBars',d.category_breakdown||{});
   }catch(e){$('riskMessage').textContent='❌ '+e.message}
 }
 
-async function loadUsers(){
-  if(!selectedGroup){$('userMessage').textContent='Select a group first.';return}
+async function loadUsers(token=selectionToken){
+  const group=selectedGroup;if(!group){$('userMessage').textContent='Select a group first.';return}
   try{
-    const d=await api('/api/groups/'+selectedGroup+'/users?limit=100');
+    const d=await api('/api/groups/'+group+'/users?limit=100');
+    if(group!==selectedGroup||token!==selectionToken)return;
     const rows=d.users||[];
     $('userRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.user_id)}</td><td>${Number(x.warnings||0)}</td><td>${Number(x.actions||0)}</td><td>${Number(x.reputation||0)}</td><td>${esc(x.last_activity||'—')}</td><td><button class="selectUser" data-id="${esc(x.user_id)}">View</button></td></tr>`).join('')||'<tr><td colspan="6" class="muted">No users recorded yet.</td></tr>';
     document.querySelectorAll('.selectUser').forEach(b=>b.onclick=()=>{$('userId').value=b.dataset.id;loadUser()});
@@ -959,22 +970,31 @@ async function userAction(action){
 /* Ghostea UI dialog controller: confirmations, prompts, alerts and all select pickers. */
 (()=>{
   const escHtml=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const base=(title,message,body,actions,extraClass='')=>{
+  const base=(title,message,body,actions,extraClass='',returnFocus=null)=>{
     const b=document.createElement('div');
     b.className='gx-dialog-backdrop '+extraClass;
-    b.innerHTML=`<div class="gx-dialog" role="dialog" aria-modal="true" aria-labelledby="gx-title">
-      <h2 id="gx-title" class="gx-dialog-title">${escHtml(title)}</h2>
-      <p class="gx-dialog-text">${escHtml(message)}</p>
+    const uid='gx-'+Math.random().toString(36).slice(2,10);
+    b.innerHTML=`<div class="gx-dialog" role="dialog" aria-modal="true" aria-labelledby="${uid}-title" aria-describedby="${uid}-text">
+      <h2 id="${uid}-title" class="gx-dialog-title">${escHtml(title)}</h2>
+      <p id="${uid}-text" class="gx-dialog-text">${escHtml(message)}</p>
       ${body||''}
       ${actions?`<div class="gx-dialog-actions">${actions}</div>`:''}
     </div>`;
     document.body.appendChild(b);
     const box=b.querySelector('.gx-dialog');
-    const first=box.querySelector('input,select,button');
+    const focusables=()=>Array.from(box.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(x=>x.offsetParent!==null);
+    const first=focusables()[0];
     if(first) setTimeout(()=>first.focus(),0);
-    const close=()=>{b.remove();};
+    const close=()=>{b.remove();if(returnFocus&&document.contains(returnFocus))setTimeout(()=>returnFocus.focus(),0);};
     b.addEventListener('click',e=>{if(e.target===b)close()});
-    box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close()}});
+    box.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.preventDefault();close();return}
+      if(e.key!=='Tab')return;
+      const list=focusables();if(!list.length)return;
+      const index=list.indexOf(document.activeElement);
+      if(e.shiftKey&&index<=0){e.preventDefault();list[list.length-1].focus()}
+      else if(!e.shiftKey&&index===list.length-1){e.preventDefault();list[0].focus()}
+    });
     return {b,box,close};
   };
 
@@ -1058,7 +1078,8 @@ async function userAction(action){
         <span>${escHtml(o.textContent.trim())}</span>
         <span class="gx-select-option-mark">${o.value===select.value?'✓':''}</span>
       </button>`).join('')}</div>`;
-    const d=base(title,'Select an option',body,'','gx-select-dialog');
+    const d=base(title,'Select an option',body,`<button type="button" data-cancel>Cancel</button>`,'gx-select-dialog',select.nextElementSibling?.querySelector('.gx-select-trigger'));
+    d.box.querySelector('[data-cancel]').onclick=()=>d.close();
     d.box.querySelectorAll('[data-select-value]').forEach(btn=>{
       btn.onclick=()=>{
         const v=btn.dataset.selectValue;

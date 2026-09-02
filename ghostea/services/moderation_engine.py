@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Optional
 
@@ -35,17 +36,25 @@ class ModerationEngine:
         self.protection = protection
 
     @staticmethod
-    def _custom_word(text, rows):
-        normalized = re.sub(r"[^a-z0-9]+", "", text.casefold())
+    def _normalize(text):
+        folded = unicodedata.normalize("NFKC", str(text)).casefold()
+        return "".join(
+            ch for ch in folded
+            if unicodedata.category(ch)[0] in ("L", "N", "M")
+        )
+
+    @classmethod
+    def _custom_word(cls, text, rows):
+        normalized = cls._normalize(text)
         for row in rows:
             value = str(row.get("value", "")).strip()
-            normalized_value = re.sub(r"[^a-z0-9]+", "", value.casefold())
+            normalized_value = cls._normalize(value)
             if not normalized_value:
                 continue
             if len(normalized_value) <= 3:
                 if re.search(
-                    rf"(?<![a-z0-9]){re.escape(normalized_value)}(?![a-z0-9])",
-                    text.casefold(),
+                    rf"(?<!\w){re.escape(normalized_value)}(?!\w)",
+                    str(text).casefold(), flags=re.UNICODE,
                 ):
                     return value
             elif normalized_value in normalized:
@@ -71,7 +80,8 @@ class ModerationEngine:
             if not pattern:
                 continue
             try:
-                if re.search(pattern, text):
+                compiled = re.compile(pattern, re.IGNORECASE)
+                if compiled.search(text):
                     return pattern
             except re.error:
                 continue

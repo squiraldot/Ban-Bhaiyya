@@ -1,4 +1,5 @@
 import logging
+import re
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -137,6 +138,15 @@ async def addfilter_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Type must be: word, domain, or pattern"
         )
         return
+    if len(value) > 500:
+        await update.effective_message.reply_text("❌ Filter value is too long (max 500 characters).")
+        return
+    if filter_type == "pattern":
+        try:
+            re.compile(value)
+        except re.error:
+            await update.effective_message.reply_text("❌ Invalid regular expression pattern.")
+            return
 
     store = context.application.bot_data["phase3_store"]
     try:

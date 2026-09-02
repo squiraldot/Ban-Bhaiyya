@@ -21,7 +21,12 @@ class VerificationService:
 
     async def check(self, chat_id, user_id, token):
         row = await self.store.get_verification(chat_id, user_id)
-        if not row or row.get("verified"):
+        # A missing verification record is never proof of verification.
+        # Returning True here would let an arbitrary stale/forged callback
+        # unmute a member.
+        if not row:
+            return False
+        if row.get("verified"):
             return True
 
         if row["token"] != token:

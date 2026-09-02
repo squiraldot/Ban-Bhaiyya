@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 
 from telegram import Update
 from telegram.ext import (
@@ -120,7 +121,7 @@ def create_application():
 
         # Render health/API server.
         try:
-            server = start_web_server(store, analytics, application.bot, risk, admins)
+            server = start_web_server(store, analytics, application.bot, risk, admins, loop=asyncio.get_running_loop())
             application.bot_data["web_server"] = server
             logger.info("Ghostea web server started.")
         except Exception:

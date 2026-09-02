@@ -1,3 +1,4 @@
+import asyncio
 import re
 import hashlib
 import hmac
@@ -54,6 +55,7 @@ class AdminService:
         self.store = store
         self._auth_cache = {}
         self._auth_cache_ttl = 30.0
+        self._mutation_lock = asyncio.Lock()
 
     async def _rows(self, query):
         return await self.store._call(
@@ -71,17 +73,27 @@ class AdminService:
             "limit": "1",
         })
         if not rows:
-            await self.store._call(
-                self.store.db.insert,
-                "ghostea_admins",
-                {
-                    "username": username,
-                    "display_name": "Super Admin",
-                    "password_hash": _hash_password(password),
-                    "role": "super_admin",
-                    "enabled": True,
-                },
-            )
+            try:
+                await self.store._call(
+                    self.store.db.insert,
+                    "ghostea_admins",
+                    {
+                        "username": username,
+                        "display_name": "Super Admin",
+                        "password_hash": _hash_password(password),
+                        "role": "super_admin",
+                        "enabled": True,
+                    },
+                )
+            except RuntimeError as error:
+                # Another request/process may have won the bootstrap race.
+                # Re-read the account and continue if it now exists.
+                rows = await self._rows({
+                    "username": f"eq.{username}",
+                    "limit": "1",
+                })
+                if not rows:
+                    raise error
 
     async def authenticate(self, username, password):
         username = str(username or "").strip().lower()
@@ -159,6 +171,10 @@ class AdminService:
         return [self.public(x) for x in rows]
 
     async def create(self, username, password, role, display_name=""):
+        async with self._mutation_lock:
+            return await self._create_locked(username, password, role, display_name)
+
+    async def _create_locked(self, username, password, role, display_name=""):
         username = str(username or "").strip().lower()
         role = str(role or "").strip()
         display_name = str(display_name or "").strip()[:100]
@@ -191,6 +207,10 @@ class AdminService:
         return self.public(rows[0]) if rows else None
 
     async def update(self, admin_id, changes):
+        async with self._mutation_lock:
+            return await self._update_locked(admin_id, changes)
+
+    async def _update_locked(self, admin_id, changes):
         admin_id = int(admin_id)
         allowed = {}
         if "display_name" in changes:
@@ -249,6 +269,10 @@ class AdminService:
         return self.public(rows[0]) if rows else None
 
     async def delete(self, admin_id):
+        async with self._mutation_lock:
+            return await self._delete_locked(admin_id)
+
+    async def _delete_locked(self, admin_id):
         admin_id = int(admin_id)
         current = await self._rows({"id": f"eq.{admin_id}", "limit": "1"})
         if not current:

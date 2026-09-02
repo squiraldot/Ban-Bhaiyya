@@ -31,6 +31,8 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     store = context.application.bot_data["phase3_store"]
+    # Keep the known-user directory useful for ordinary active members too.
+    await store.touch_user(chat.id, user.id)
     settings = await store.get_settings(chat.id)
     protection = context.application.bot_data["protection"]
     moderation = context.application.bot_data["phase3_moderation"]

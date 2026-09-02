@@ -1,5 +1,7 @@
+import asyncio
 import json
 import os
+import re
 import threading
 import time
 from collections import defaultdict, deque
@@ -11,6 +13,18 @@ MAX_BODY_BYTES = 32 * 1024
 RATE_WINDOW_SECONDS = 60
 RATE_MAX_REQUESTS = 300
 GET_CACHE_TTL = 5.0
+
+
+def _validate_filter_value(filter_type, value):
+    value = str(value or "").strip()
+    if not value or len(value) > 500:
+        return False
+    if filter_type == "pattern":
+        try:
+            re.compile(value)
+        except re.error:
+            return False
+    return True
 
 
 def _configured_origin():
@@ -55,6 +69,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
     analytics = None
     admins = None
     user_management = None
+    _async_loop = None
     _rate_lock = threading.Lock()
     _rate = defaultdict(deque)
     _cache_lock = threading.Lock()
@@ -62,6 +77,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         return
+
+    def _run_async(self, coro):
+        """Run a coroutine on the Telegram application's event loop.
+
+        HTTP requests are handled by worker threads. Reusing the bot loop is
+        important because Phase3Store contains asyncio synchronization
+        primitives that must not be driven from a second event loop.
+        """
+        loop = type(self)._async_loop
+        if loop is not None and loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            return future.result(timeout=45)
+        return asyncio.run(coro)
+
+    @staticmethod
+    def _call_sync(fn, *args, **kwargs):
+        return fn(*args, **kwargs)
 
     @classmethod
     def _rate_limited(cls, handler):
@@ -76,6 +108,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if len(q) >= RATE_MAX_REQUESTS:
                 return True
             q.append(now)
+            # Render normally sees one proxy IP, so keep the limiter map from
+            # growing forever when clients rotate addresses.
+            if len(cls._rate) > 1024:
+                stale = [key for key, values in cls._rate.items() if not values or values[-1] <= now - RATE_WINDOW_SECONDS]
+                for stale_key in stale[:256]:
+                    cls._rate.pop(stale_key, None)
             return False
 
     def do_OPTIONS(self):
@@ -115,7 +153,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         admin_id = self.headers.get("X-Ghostea-Admin-Id", "")
         if self.admins and self.admins.allowed(role, permission):
             try:
-                current = self.store._run_async(
+                current = self._run_async(
                     self.admins.authorize(admin_id, role)
                 )
             except Exception:
@@ -175,12 +213,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if path == "/api/auth/admins":
                 if not self._require_permission("manage_admins"):
                     return
-                rows = self.store._run_async(self.admins.list_admins())
+                rows = self._run_async(self.admins.list_admins())
                 return _json(self, 200, {"admins": rows})
 
             if path == "/api/health":
                 # This is a real database check rather than a hard-coded flag.
-                self.store._call_sync(
+                self._call_sync(
                     self.store.db.select,
                     "ghostea_group_settings",
                     {"select": "chat_id", "limit": "1"},
@@ -197,7 +235,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 cached = self._cached_json(cache_key)
                 if cached is not None:
                     return _json(self, 200, cached)
-                rows = self.store._call_sync(
+                rows = self._call_sync(
                     self.store.db.select,
                     "ghostea_group_settings",
                     {"select": "*", "order": "updated_at.desc", "limit": "200"},
@@ -212,7 +250,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 chat_id = int(parts[3])
                 days = int(parse_qs(parsed.query).get("days", ["7"])[0])
                 days = max(1, min(days, 90))
-                report = self.store._run_async(
+                report = self._run_async(
                     self.analytics.report(chat_id, days)
                 )
                 return _json(self, 200, report)
@@ -232,7 +270,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if cached is not None:
                     return _json(self, 200, cached)
                 try:
-                    report = self.store._run_async(
+                    report = self._run_async(
                         self.risk.report(chat_id, days=days, limit=50)
                     )
                 except RuntimeError as error:
@@ -253,7 +291,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 cached = self._cached_json(cache_key)
                 if cached is not None:
                     return _json(self, 200, cached)
-                users = self.store._run_async(
+                users = self._run_async(
                     self.store.get_user_directory(chat_id, limit)
                 )
                 return _json(self, 200, self._put_cache(cache_key, {"users": users}))
@@ -267,9 +305,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 user_id = int(parts[5])
                 profile = self.user_management._run_profile(chat_id, user_id)
                 if self.risk is not None:
-                    profile["risk"] = self.store._run_async(
-                        self.risk.user(chat_id, user_id, days=30)
-                    )
+                    try:
+                        profile["risk"] = self._run_async(
+                            self.risk.user(chat_id, user_id, days=30)
+                        )
+                    except Exception:
+                        # Risk is advisory; a risk-query outage must not make
+                        # the underlying user profile unusable.
+                        profile["risk"] = None
                 return _json(self, 200, profile)
 
             if path.startswith("/api/groups/") and path.endswith("/settings"):
@@ -278,7 +321,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
                 chat_id = int(parts[3])
-                settings = self.store._call_sync(
+                settings = self._call_sync(
                     self.store.db.select,
                     "ghostea_group_settings",
                     {"chat_id": f"eq.{chat_id}", "limit": "1"},
@@ -293,7 +336,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 chat_id = int(parts[3])
                 limit = int(parse_qs(parsed.query).get("limit", ["100"])[0])
                 limit = max(1, min(limit, 200))
-                logs = self.store._call_sync(
+                logs = self._call_sync(
                     self.store.db.select,
                     "ghostea_moderation_logs",
                     {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": str(limit)},
@@ -306,7 +349,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
                 chat_id = int(parts[3])
-                filters = self.store._call_sync(
+                filters = self._call_sync(
                     self.store.db.select,
                     "ghostea_custom_filters",
                     {"chat_id": f"eq.{chat_id}", "order": "created_at.asc", "limit": "500"},
@@ -336,7 +379,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length) or b"{}")
                 if not isinstance(payload, dict):
                     return _json(self, 400, {"error": "object_required"})
-                admin = self.admins and self.store._run_async(
+                admin = self.admins and self._run_async(
                     self.admins.authenticate(
                         payload.get("username"), payload.get("password")
                     )
@@ -360,7 +403,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if length <= 0 or length > MAX_BODY_BYTES:
                     return _json(self, 413, {"error": "payload_too_large"})
                 payload = json.loads(self.rfile.read(length) or b"{}")
-                admin = self.store._run_async(
+                admin = self._run_async(
                     self.admins.create(
                         payload.get("username"),
                         payload.get("password"),
@@ -405,38 +448,43 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if action == "mute" and not 1 <= minutes <= 10080:
                     return _json(self, 400, {"error": "invalid_minutes"})
 
+                current_admin_id = int(self.headers.get("X-Ghostea-Admin-Id", "0") or 0)
+
                 # The Vercel proxy authenticates the dashboard. The Telegram
-                # bot itself remains the executor of moderation actions.
+                # bot itself remains the executor of moderation actions, while
+                # the real dashboard admin is retained in the audit trail.
                 if action == "warn":
                     result = self.user_management._run_action(
-                        "warn", chat_id, target_user_id, reason=reason
+                        "warn", chat_id, target_user_id, admin_id=current_admin_id, reason=reason
                     )
                 elif action == "unwarn":
                     result = self.user_management._run_action(
-                        "unwarn", chat_id, target_user_id
+                        "unwarn", chat_id, target_user_id, admin_id=current_admin_id
                     )
                 elif action == "reset_warnings":
                     result = self.user_management._run_action(
-                        "reset_warnings", chat_id, target_user_id
+                        "reset_warnings", chat_id, target_user_id, admin_id=current_admin_id
                     )
                 elif action == "ban":
                     result = self.user_management._run_action(
-                        "ban", chat_id, target_user_id
+                        "ban", chat_id, target_user_id, admin_id=current_admin_id
                     )
                 elif action == "unban":
                     result = self.user_management._run_action(
-                        "unban", chat_id, target_user_id
+                        "unban", chat_id, target_user_id, admin_id=current_admin_id
                     )
                 elif action == "mute":
                     result = self.user_management._run_action(
-                        "mute", chat_id, target_user_id, minutes=minutes
+                        "mute", chat_id, target_user_id, admin_id=current_admin_id, minutes=minutes
                     )
                 else:
                     result = self.user_management._run_action(
-                        "unmute", chat_id, target_user_id
+                        "unmute", chat_id, target_user_id, admin_id=current_admin_id
                     )
                 return _json(self, 200, result)
-            except PermissionError:
+            except PermissionError as error:
+                if str(error) == "target_lookup_failed":
+                    return _json(self, 503, {"error": "target_lookup_failed"})
                 return _json(self, 403, {"error": "target_is_admin"})
             except (ValueError, TypeError):
                 return _json(self, 400, {"error": "invalid_request"})
@@ -462,12 +510,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
             value = payload.get("value")
             if filter_type not in ("word", "domain", "pattern"):
                 return _json(self, 400, {"error": "invalid_filter_type"})
-            if not isinstance(value, str) or not value.strip() or len(value.strip()) > 500:
+            if not isinstance(value, str) or not _validate_filter_value(filter_type, value):
                 return _json(self, 400, {"error": "invalid_filter_value"})
-            result = self.store._call_sync(
-                self.store.db.upsert,
-                "ghostea_custom_filters",
-                {"chat_id": chat_id, "filter_type": filter_type, "value": value.strip(), "enabled": True},
+            result = self._run_async(
+                self.store.add_custom_filter(chat_id, filter_type, value.strip())
             )
             return _json(self, 200, result)
         except json.JSONDecodeError:
@@ -489,7 +535,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 current_admin_id = int(self.headers.get("X-Ghostea-Admin-Id", "0") or 0)
                 if admin_id == current_admin_id:
                     return _json(self, 400, {"error": "cannot_delete_current_admin"})
-                result = self.store._run_async(self.admins.delete(admin_id))
+                result = self._run_async(self.admins.delete(admin_id))
                 return _json(self, 200, result)
             except ValueError as e:
                 return _json(self, 400, {"error": str(e)})
@@ -504,10 +550,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         try:
             chat_id = int(parts[3])
             filter_id = int(parts[5])
-            result = self.store._call_sync(
-                self.store.db.delete,
-                "ghostea_custom_filters",
-                {"chat_id": f"eq.{chat_id}", "id": f"eq.{filter_id}"},
+            result = self._run_async(
+                self.store.remove_custom_filter_by_id(chat_id, filter_id)
             )
             return _json(self, 200, {"ok": True, "deleted": len(result or [])})
         except (ValueError, TypeError):
@@ -532,7 +576,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if length <= 0 or length > MAX_BODY_BYTES:
                     return _json(self, 413, {"error": "payload_too_large"})
                 payload = json.loads(self.rfile.read(length) or b"{}")
-                result = self.store._run_async(self.admins.update(admin_id, payload))
+                result = self._run_async(self.admins.update(admin_id, payload))
                 return _json(self, 200, {"admin": result})
             except ValueError as e:
                 return _json(self, 400, {"error": str(e)})
@@ -627,12 +671,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if "blocked_link_action" in changes and changes["blocked_link_action"] not in ("delete", "warn"):
                 return _json(self, 400, {"error": "invalid_blocked_link_action"})
 
-            result = self.store._call_sync(
-                self.store.db.update,
-                "ghostea_group_settings",
-                changes,
-                {"chat_id": f"eq.{chat_id}"},
-            )
+            # Route through the store so the bot's short-lived settings cache
+            # is invalidated immediately after a dashboard update.
+            result = self._run_async(self.store.update_settings(chat_id, changes))
             return _json(self, 200, result)
         except json.JSONDecodeError:
             return _json(self, 400, {"error": "invalid_json"})
@@ -642,30 +683,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return _json(self, 500, {"error": "internal_server_error"})
 
 
-def start_web_server(store, analytics, bot=None, risk=None, admins=None):
+def start_web_server(store, analytics, bot=None, risk=None, admins=None, loop=None):
     port = int(os.getenv("PORT", "10000"))
     DashboardHandler.store = store
     DashboardHandler.analytics = analytics
     DashboardHandler.risk = risk
     DashboardHandler.admins = admins
     DashboardHandler.user_management = None
+    DashboardHandler._async_loop = loop
 
     server = ThreadingHTTPServer(("0.0.0.0", port), DashboardHandler)
-
-    if not hasattr(store, "_call_sync"):
-        def _call_sync(fn, *args, **kwargs):
-            return fn(*args, **kwargs)
-
-        def _run_async(coro):
-            import asyncio
-            return asyncio.run(coro)
-
-        store._call_sync = _call_sync
-        store._run_async = _run_async
-
+    server.daemon_threads = True
+    server.request_queue_size = 64
 
     def run_async(coro):
-        import asyncio
+        active_loop = loop
+        if active_loop is not None and active_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(coro, active_loop)
+            return future.result(timeout=45)
         return asyncio.run(coro)
 
     if bot is not None:
@@ -676,10 +711,7 @@ def start_web_server(store, analytics, bot=None, risk=None, admins=None):
         async def _profile(chat_id, user_id):
             return await manager.profile(chat_id, user_id)
 
-        async def _action(action, chat_id, user_id, **kwargs):
-            # Dashboard authentication is already enforced at this API layer.
-            # The Telegram bot is the actor, so the audit trail records 0.
-            admin_id = 0
+        async def _action(action, chat_id, user_id, admin_id=0, **kwargs):
             if action == "warn":
                 return await manager.warn(chat_id, user_id, admin_id, kwargs.get("reason", "Dashboard action"))
             if action == "unwarn":

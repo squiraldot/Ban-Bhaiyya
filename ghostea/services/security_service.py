@@ -29,11 +29,18 @@ _PERMISSION_FIELDS = (
 )
 
 
+def _permission_fields(permissions=None):
+    fields = set(_PERMISSION_FIELDS)
+    source = permissions if permissions is not None else ChatPermissions
+    fields.update(getattr(source, "__annotations__", {}).keys())
+    return tuple(fields)
+
+
 def _permissions_to_dict(permissions):
     if not permissions:
         return {}
     result = {}
-    for field in _PERMISSION_FIELDS:
+    for field in _permission_fields(permissions):
         value = getattr(permissions, field, None)
         if value is not None:
             result[field] = bool(value)
@@ -43,11 +50,16 @@ def _permissions_to_dict(permissions):
 def _permissions_from_dict(data):
     if not isinstance(data, dict):
         return ChatPermissions()
+    supported = set(_permission_fields(ChatPermissions))
     return ChatPermissions(**{
         key: bool(value)
         for key, value in data.items()
-        if key in _PERMISSION_FIELDS
+        if key in _PERMISSION_FIELDS and key in supported
     })
+
+
+def _permissions_equal(left, right):
+    return _permissions_to_dict(left) == _permissions_to_dict(right)
 
 
 class SecurityService:
@@ -205,14 +217,25 @@ class SecurityService:
         try:
             chat = await self.bot.get_chat(chat_id)
             if original:
-                await chat.set_permissions(
-                    permissions=_permissions_from_dict(original)
-                )
-                await self.store.log_raid_event(
-                    chat_id,
-                    "RAID_UNLOCK",
-                    "raid lock expired; original permissions restored",
-                )
+                current = getattr(chat, "permissions", None)
+                muted = muted_permissions()
+                if current is not None and not _permissions_equal(current, muted):
+                    # An admin changed the default permissions while the raid
+                    # lock was active. Respect that newer intentional state.
+                    await self.store.log_raid_event(
+                        chat_id,
+                        "RAID_UNLOCK_SKIPPED",
+                        "default permissions changed during raid lock; preserved newer state",
+                    )
+                else:
+                    await chat.set_permissions(
+                        permissions=_permissions_from_dict(original)
+                    )
+                    await self.store.log_raid_event(
+                        chat_id,
+                        "RAID_UNLOCK",
+                        "raid lock expired; original permissions restored",
+                    )
             else:
                 logger.warning(
                     "Raid lock expired without permission snapshot: chat=%s",
