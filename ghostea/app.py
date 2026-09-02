@@ -52,6 +52,7 @@ from ghostea.handlers.phase5 import (
 from ghostea.handlers.phase6 import analytics_command, export_command, health_command
 from ghostea.logging_config import setup_logging
 from ghostea.services.analytics_service import AnalyticsService
+from ghostea.services.admin_service import AdminService
 from ghostea.services.moderation_engine import ModerationEngine
 from ghostea.services.phase3_moderation import Phase3ModerationService
 from ghostea.services.protection_service import ProtectionService
@@ -93,6 +94,7 @@ def create_application():
     moderation = Phase3ModerationService(store)
     moderation_engine = ModerationEngine(abuse_filter, protection)
     analytics = AnalyticsService(store)
+    admins = AdminService(store)
     verification = VerificationService(store)
     security = SecurityService(store, None)  # bot is attached after Application creation
     risk = RiskService(store)
@@ -118,7 +120,7 @@ def create_application():
 
         # Render health/API server.
         try:
-            server = start_web_server(store, analytics, application.bot, risk)
+            server = start_web_server(store, analytics, application.bot, risk, admins)
             application.bot_data["web_server"] = server
             logger.info("Ghostea web server started.")
         except Exception:
@@ -153,6 +155,7 @@ def create_application():
         "phase3_store": store,
         "phase3_moderation": moderation,
         "analytics": analytics,
+        "admins": admins,
         "user_management": user_management,
         "verification": verification,
         "security": security,

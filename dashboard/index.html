@@ -21,7 +21,8 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
 <main>
 <section id="login" class="card login">
   <div class="brand"><h1>Ghostea 👻 Admin</h1><p>Secure moderation control center</p></div>
-  <div class="field" style="margin-top:18px"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter dashboard password"></div>
+  <div class="field" style="margin-top:18px"><label for="username">Admin username</label><input id="username" type="text" autocomplete="username" placeholder="superadmin"></div>
+  <div class="field" style="margin-top:12px"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter dashboard password"></div>
   <div class="row" style="margin-top:12px"><button id="loginBtn" class="primary">Login</button><span id="loginError" class="error"></span></div>
 </section>
 
@@ -34,12 +35,13 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
   <div class="layout">
     <aside class="sidebar card">
       <button class="navbtn active" data-section="overview">📊 Overview</button>
-      <button class="navbtn" data-section="settings">⚙️ Settings</button>
-      <button class="navbtn" data-section="filters">🧹 Filters</button>
+      <button class="navbtn" data-section="settings" data-permission="settings">⚙️ Settings</button>
+      <button class="navbtn" data-section="filters" data-permission="settings">🧹 Filters</button>
       <button class="navbtn" data-section="analytics">📈 Analytics</button>
       <button class="navbtn" data-section="logs">📋 Moderation Logs</button>
       <button class="navbtn" data-section="users">👤 Users</button>
       <button class="navbtn" data-section="risk">🛡️ Risk Center</button>
+      <button class="navbtn super-only" data-section="admins">👑 Admins</button>
     </aside>
 
     <div class="content">
@@ -49,7 +51,7 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
       </section>
 
       <section id="settings" class="section">
-        <div class="card"><div class="section-title"><h2>Group Settings</h2><button id="saveSettings" class="primary">Save changes</button></div><p id="settingsMessage" class="muted">Select a group from Overview.</p><div id="settingsForm" class="hidden">
+        <div class="card"><div class="section-title"><h2>Group Settings</h2><button id="saveSettings" class="primary" data-permission="settings">Save changes</button></div><p id="settingsMessage" class="muted">Select a group from Overview.</p><div id="settingsForm" class="hidden">
           <div class="grid3" style="margin-top:14px">
             <div class="setting"><label>Warning limit</label><input data-key="max_warnings" type="number" min="1" max="20"></div>
             <div class="setting"><label>Mute 1 (minutes)</label><input data-key="mute1_minutes" type="number" min="1" max="10080"></div>
@@ -76,7 +78,7 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
       </section>
 
       <section id="filters" class="section">
-        <div class="card"><div class="section-title"><h2>Custom Filters</h2><button id="filtersRefresh">Refresh</button></div><p class="muted">Add group-specific words, domains or patterns without editing the source repository.</p><div id="filterForm" class="grid3"><div class="field"><label>Type</label><select id="filterType"><option value="word">Word</option><option value="domain">Domain</option><option value="pattern">Pattern</option></select></div><div class="field" style="grid-column:span 2"><label>Value</label><input id="filterValue" maxlength="500" placeholder="e.g. example.com or pattern"></div></div><button id="addFilter" class="primary" style="margin-top:10px">Add filter</button><p id="filterMessage" class="muted"></p><div class="scroll"><table class="table"><thead><tr><th>Type</th><th>Value</th><th>Action</th></tr></thead><tbody id="filterRows"></tbody></table></div></div>
+        <div class="card"><div class="section-title"><h2>Custom Filters</h2><button id="filtersRefresh">Refresh</button></div><p class="muted">Add group-specific words, domains or patterns without editing the source repository.</p><div id="filterForm" class="grid3"><div class="field"><label>Type</label><select id="filterType"><option value="word">Word</option><option value="domain">Domain</option><option value="pattern">Pattern</option></select></div><div class="field" style="grid-column:span 2"><label>Value</label><input id="filterValue" maxlength="500" placeholder="e.g. example.com or pattern"></div></div><button id="addFilter" class="primary" data-permission="settings" style="margin-top:10px">Add filter</button><p id="filterMessage" class="muted"></p><div class="scroll"><table class="table"><thead><tr><th>Type</th><th>Value</th><th>Action</th></tr></thead><tbody id="filterRows"></tbody></table></div></div>
       </section>
 
       <section id="analytics" class="section">
@@ -109,6 +111,26 @@ main{max-width:1250px;margin:auto;padding:20px}.topbar{display:flex;justify-cont
               <div class="setting"><h3>Top risk users</h3><div class="scroll"><table class="table"><thead><tr><th>User</th><th>Score</th><th>Level</th><th>Warnings</th><th>Events</th></tr></thead><tbody id="riskRows"></tbody></table></div></div>
               <div class="setting"><h3>Risk categories</h3><div id="riskBars"></div></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="admins" class="section super-only">
+        <div class="card">
+          <div class="section-title"><h2>Admin Management</h2><button id="adminsRefresh">Refresh</button></div>
+          <p id="adminsMessage" class="muted">Only Super Admin can manage dashboard admins.</p>
+          <div class="setting" style="margin-top:12px">
+            <h3>Create admin</h3>
+            <div class="grid2">
+              <input id="newAdminUsername" placeholder="username (3–32 chars)" />
+              <input id="newAdminDisplay" placeholder="display name" />
+              <input id="newAdminPassword" type="password" placeholder="password (10+ chars)" />
+              <select id="newAdminRole"><option value="admin">Admin</option><option value="moderator">Moderator</option><option value="viewer">Viewer</option><option value="super_admin">Super Admin</option></select>
+            </div>
+            <button id="createAdmin" style="margin-top:10px">Create admin</button>
+          </div>
+          <div class="scroll" style="margin-top:18px">
+            <table class="table"><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead><tbody id="adminRows"></tbody></table>
           </div>
         </div>
       </section>
@@ -159,10 +181,29 @@ const $=id=>document.getElementById(id); let selectedGroup=null; let settings=nu
 const riskLevels={low:'🟢 Low',medium:'🟡 Medium',high:'🟠 High',critical:'🔴 Critical'};
 const switchKeys=[['abuse_filter_enabled','Abuse'],['spam_filter_enabled','Spam'],['link_filter_enabled','Links'],['flood_protection_enabled','Flood'],['welcome_enabled','Welcome'],['antiraid_enabled','Anti-Raid'],['verification_enabled','Verification'],['warning_decay_enabled','Warning decay'],['auto_cleanup_enabled','Auto cleanup']];
 async function api(path,options={}){const r=await fetch('/api/ghostea?path='+encodeURIComponent(path),{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||'Request failed');return d}
-function showLogin(){ $('login').classList.remove('hidden');$('app').classList.add('hidden') } function showApp(){ $('login').classList.add('hidden');$('app').classList.remove('hidden');loadGroups() }
+function showLogin(){ $('login').classList.remove('hidden');$('app').classList.add('hidden') }
+function showApp(admin){ $('login').classList.add('hidden');$('app').classList.remove('hidden'); applyRole(admin?.role||'viewer'); loadGroups() }
+function applyRole(role){
+  const permissions={
+    super_admin:new Set(['read','moderate','settings','manage_admins']),
+    admin:new Set(['read','moderate','settings']),
+    moderator:new Set(['read','moderate']),
+    viewer:new Set(['read'])
+  }[role]||new Set(['read']);
+  document.querySelectorAll('.super-only').forEach(el=>el.style.display=role==='super_admin'?'':'none');
+  document.querySelectorAll('[data-permission]').forEach(el=>{
+    el.style.display=permissions.has(el.dataset.permission)?'':'none';
+  });
+  document.querySelectorAll('[data-user-action]').forEach(el=>{
+    el.style.display=permissions.has('moderate')?'':'none';
+  });
+  $('status').dataset.role=role;
+  const badge=document.createElement('span'); badge.className='badge'; badge.textContent=role.replaceAll('_',' ');
+  const old=document.getElementById('roleBadge'); if(old)old.remove(); badge.id='roleBadge'; $('status').after(badge);
+}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function loadGroups(){try{const h=await api('/api/health');$('status').textContent='🟢 API online • DB '+(h.database?'OK':'ERROR');$('status').className='badge ok';const d=await api('/api/groups');const groups=d.groups||[];$('groups').innerHTML='';if(!groups.length){$('groups').innerHTML='<div class="notice muted">No configured groups yet. Add the bot to a group and let it process a message.</div>';return}for(const g of groups){const c=document.createElement('div');c.className='card';c.innerHTML=`<div class="section-title"><h3>Group ${esc(g.chat_id)}</h3><span class="badge">limit ${Number(g.max_warnings||0)}</span></div><p class="muted">Abuse ${g.abuse_filter_enabled?'ON':'OFF'} · Spam ${g.spam_filter_enabled?'ON':'OFF'} · Anti-Raid ${g.antiraid_enabled?'ON':'OFF'}</p><button data-group="${esc(g.chat_id)}" class="selectGroup">Manage group</button>`;$('groups').appendChild(c)}document.querySelectorAll('.selectGroup').forEach(b=>b.onclick=()=>selectGroup(b.dataset.group));if(selectedGroup)selectGroup(selectedGroup)}catch(e){$('status').textContent='🔴 '+e.message;$('status').className='badge error'}}
-async function selectGroup(id){selectedGroup=id;$('selectedGroup').textContent=id;$('overviewStats').classList.remove('hidden');await Promise.all([loadSettings(),loadAnalytics(),loadLogs(),loadFilters(),loadRisk(),loadUsers()]);}
+async function selectGroup(id){selectedGroup=id;$('selectedGroup').textContent=id;$('overviewStats').classList.remove('hidden');await loadSettings();await loadAnalytics();await loadLogs();await loadFilters();await loadUsers();await loadRisk();}
 async function loadSettings(){if(!selectedGroup)return;try{settings=await api('/api/groups/'+selectedGroup+'/settings');$('settingsForm').classList.remove('hidden');$('settingsMessage').textContent='Editing group '+selectedGroup;document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;if(settings[k]!==undefined&&el.type!=='button')el.value=settings[k]});$('switches').innerHTML='';for(const [key,label] of switchKeys){const wrap=document.createElement('div');wrap.className='row setting';wrap.style.flex='1 1 180px';wrap.innerHTML=`<span>${label}</span><button type="button" class="switch ${settings[key]?'on':''}" data-switch="${key}" aria-label="Toggle ${label}"><i></i></button>`;$('switches').appendChild(wrap)}document.querySelectorAll('[data-switch]').forEach(b=>b.onclick=()=>{const k=b.dataset.switch;settings[k]=!settings[k];b.classList.toggle('on',settings[k])});$('ovLimit').textContent=settings.max_warnings??'—'}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
 async function saveSettings(){if(!selectedGroup)return;const payload={};document.querySelectorAll('[data-key]').forEach(el=>{const k=el.dataset.key;payload[k]=el.type==='number'?Number(el.value):el.value});document.querySelectorAll('[data-switch]').forEach(b=>payload[b.dataset.switch]=b.classList.contains('on'));try{await api('/api/groups/'+selectedGroup+'/settings',{method:'PATCH',body:JSON.stringify(payload)});$('settingsMessage').textContent='✅ Settings saved';await loadGroups()}catch(e){$('settingsMessage').textContent='❌ '+e.message}}
 async function loadAnalytics(){if(!selectedGroup)return;try{const days=Number($('analyticsDays').value||7);const d=await api('/api/groups/'+selectedGroup+'/analytics?days='+days);$('analyticsPanel').classList.remove('hidden');$('analyticsMessage').textContent='Group '+selectedGroup;$('anJoins').textContent=d.joins??0;$('anWarnings').textContent=d.warnings??0;$('anActions').textContent=d.actions??0;$('anDays').textContent=(d.days??days)+'d';renderBars('warningBars',d.warning_reasons||{});renderBars('actionBars',d.actions_by_type||{});$('ovJoins').textContent=d.joins??0;$('ovWarnings').textContent=d.warnings??0;$('ovActions').textContent=d.actions??0}catch(e){$('analyticsMessage').textContent='❌ '+e.message}}
@@ -171,10 +212,48 @@ async function loadLogs(){if(!selectedGroup)return;try{const d=await api('/api/g
 async function loadFilters(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/filters');$('filterRows').innerHTML=(d.filters||[]).map(r=>`<tr><td>${esc(r.filter_type)}</td><td>${esc(r.value)}</td><td><button class="danger deleteFilter" data-id="${esc(r.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="3" class="muted">No custom filters.</td></tr>';document.querySelectorAll('.deleteFilter').forEach(b=>b.onclick=()=>deleteFilter(b.dataset.id))}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function deleteFilter(id){if(!confirm('Delete this custom filter?'))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
-$('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp()}catch(e){$('loginError').textContent='❌ '+e.message}};
-$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('refreshBtn').onclick=loadGroups;$('riskRefresh').onclick=loadRisk;$('usersRefresh').onclick=loadUsers;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
-document.querySelectorAll('.navbtn').forEach(b=>b.onclick=async()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active');if(b.dataset.section==='users')await loadUsers();if(b.dataset.section==='risk')await loadRisk()});
-fetch('/api/ghostea?path=%2Fapi%2Fhealth').then(r=>{if(r.status===401)showLogin();else if(r.ok)showApp();else showLogin()}).catch(showLogin);
+$('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp(d.admin)}catch(e){$('loginError').textContent='❌ '+e.message}};
+$('username').addEventListener('keydown',e=>{if(e.key==='Enter')$('password').focus()});$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('adminsRefresh').onclick=loadAdmins;$('createAdmin').onclick=createAdmin;$('refreshBtn').onclick=loadGroups;$('riskRefresh').onclick=loadRisk;$('usersRefresh').onclick=loadUsers;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
+document.querySelectorAll('.navbtn').forEach(b=>b.onclick=async()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active');if(b.dataset.section==='users')await loadUsers();if(b.dataset.section==='risk')await loadRisk();if(b.dataset.section==='admins')await loadAdmins()});
+
+async function loadAdmins(){
+  try{
+    const d=await api('/api/auth/admins');
+    $('adminRows').innerHTML=(d.admins||[]).map(a=>`<tr><td><b>${esc(a.username)}</b><br><span class="muted">${esc(a.display_name)}</span></td><td>${esc(a.role)}</td><td>${a.enabled?'🟢 Enabled':'🔴 Disabled'}</td><td>${esc(a.last_login_at||'Never')}</td><td><button data-admin-edit="${a.id}">Edit</button> <button class="danger" data-admin-delete="${a.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No admins.</td></tr>';
+    document.querySelectorAll('[data-admin-edit]').forEach(b=>b.onclick=()=>editAdmin(b.dataset.adminEdit));
+    document.querySelectorAll('[data-admin-delete]').forEach(b=>b.onclick=()=>deleteAdmin(b.dataset.adminDelete));
+  }catch(e){$('adminsMessage').textContent='❌ '+e.message}
+}
+async function editAdmin(id){
+  const role=prompt('New role: super_admin, admin, moderator, viewer');
+  if(!role)return;
+  const enabled=confirm('Keep this admin enabled?');
+  const password=prompt('New password (leave blank to keep current):');
+  const body={role,enabled};
+  if(password)body.password=password;
+  try{await api('/api/auth/admins/'+id,{method:'PATCH',body:JSON.stringify(body)});$('adminsMessage').textContent='✅ Admin updated';await loadAdmins()}catch(e){$('adminsMessage').textContent='❌ '+e.message}
+}
+async function deleteAdmin(id){
+  if(!confirm('Delete this dashboard admin?'))return;
+  try{await api('/api/auth/admins/'+id,{method:'DELETE'});$('adminsMessage').textContent='✅ Admin deleted';await loadAdmins()}catch(e){$('adminsMessage').textContent='❌ '+e.message}
+}
+async function createAdmin(){
+  try{
+    await api('/api/auth/admins',{method:'POST',body:JSON.stringify({
+      username:$('newAdminUsername').value.trim(),
+      display_name:$('newAdminDisplay').value.trim(),
+      password:$('newAdminPassword').value,
+      role:$('newAdminRole').value
+    })});
+    $('newAdminUsername').value='';$('newAdminDisplay').value='';$('newAdminPassword').value='';
+    $('adminsMessage').textContent='✅ Admin created';await loadAdmins();
+  }catch(e){$('adminsMessage').textContent='❌ '+e.message}
+}
+fetch('/api/ghostea?path=%2Fapi%2Fhealth').then(async r=>{
+  if(r.status===401){showLogin();return}
+  if(!r.ok){showLogin();return}
+  try{const me=await api('/api/auth/me');showApp(me.admin)}catch{showLogin()}
+}).catch(showLogin);
 
 async function loadRisk(){
   if(!selectedGroup){$('riskMessage').textContent='Select a group first.';return}

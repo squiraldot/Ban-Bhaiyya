@@ -13,41 +13,53 @@ function sign(value) {
     .digest("base64url");
 }
 
-function makeSession() {
-  const payload = `${Date.now()}:${crypto.randomBytes(24).toString("base64url")}`;
+function makeSession(admin) {
+  const payload = [
+    Date.now(),
+    crypto.randomBytes(18).toString("base64url"),
+    admin.id,
+    admin.role,
+    admin.username
+  ].join(":");
   return `${Buffer.from(payload).toString("base64url")}.${sign(payload)}`;
 }
 
 function validSession(req) {
   const cookie = req.headers.cookie || "";
   const match = cookie.match(/(?:^|;\s*)ghostea_session=([^;]+)/);
-  if (!match || !secret("GHOSTEA_SESSION_SECRET")) return false;
+  if (!match || !secret("GHOSTEA_SESSION_SECRET")) return null;
 
   const raw = match[1];
   const parts = raw.split(".");
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return null;
 
   let payload;
   try {
     payload = Buffer.from(parts[0], "base64url").toString("utf8");
   } catch {
-    return false;
+    return null;
   }
 
-  const [issued] = payload.split(":");
-  const issuedAt = Number(issued);
+  const fields = payload.split(":");
+  const issuedAt = Number(fields[0]);
   if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > SESSION_TTL * 1000) {
-    return false;
+    return null;
   }
+  if (!fields[2] || !fields[3] || !fields[4]) return null;
 
   const expected = sign(payload);
   const actual = parts[1];
-  if (expected.length !== actual.length) return false;
+  if (expected.length !== actual.length) return null;
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(actual)
-  );
+  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual))) {
+    return null;
+  }
+
+  return {
+    admin_id: fields[2],
+    role: fields[3],
+    username: fields.slice(4).join(":"),
+  };
 }
 
 function json(res, status, body, extra = {}) {
@@ -85,25 +97,40 @@ export default async function handler(req, res) {
 
   if (req.method === "POST" && req.query.action === "login") {
     const body = await parseBody(req).catch(() => null);
-    if (!body || typeof body.password !== "string") {
-      return json(res, 400, { error: "password_required" });
+    if (!body || typeof body.username !== "string" || typeof body.password !== "string") {
+      return json(res, 400, { error: "credentials_required" });
     }
 
-    const expected = secret("GHOSTEA_ADMIN_PASSWORD");
-    if (!expected) return json(res, 500, { error: "server_not_configured" });
+    try {
+      const upstream = await fetch(`${target}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secret("GHOSTEA_API_KEY")}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          username: body.username,
+          password: body.password,
+        }),
+        redirect: "error",
+      });
+      const result = await upstream.json().catch(() => null);
+      if (!upstream.ok || !result?.admin) {
+        return json(res, upstream.status || 401, {
+          error: result?.error || "invalid_credentials"
+        });
+      }
 
-    const a = Buffer.from(body.password);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-      return json(res, 401, { error: "invalid_credentials" });
+      const session = makeSession(result.admin);
+      res.setHeader(
+        "Set-Cookie",
+        `ghostea_session=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}`
+      );
+      return json(res, 200, { ok: true, admin: result.admin });
+    } catch {
+      return json(res, 502, { error: "ghostea_unreachable" });
     }
-
-    const session = makeSession();
-    res.setHeader(
-      "Set-Cookie",
-      `ghostea_session=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}`
-    );
-    return json(res, 200, { ok: true });
   }
 
   if (req.method === "POST" && req.query.action === "logout") {
@@ -114,7 +141,8 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true });
   }
 
-  if (!validSession(req)) {
+  const session = validSession(req);
+  if (!session) {
     return json(res, 401, { error: "login_required" });
   }
 
@@ -138,20 +166,23 @@ export default async function handler(req, res) {
   const userProfile = pathname.match(/^\/api\/groups\/(-?\d+)\/users\/(-?\d+)\/profile$/);
   const userList = pathname.match(/^\/api\/groups\/(-?\d+)\/users$/);
   const userAction = pathname.match(/^\/api\/groups\/(-?\d+)\/users$/);
-  const allowed = ALLOWED_GET.has(pathname) || Boolean(match) || Boolean(filterDelete) || Boolean(userProfile) || Boolean(userList) || Boolean(userAction);
+  const authMe = pathname === "/api/auth/me";
+  const admins = pathname === "/api/auth/admins";
+  const adminItem = pathname.match(/^\/api\/auth\/admins\/(\d+)$/);
+  const allowed = ALLOWED_GET.has(pathname) || Boolean(match) || Boolean(filterDelete) || Boolean(userProfile) || Boolean(userList) || Boolean(userAction) || authMe || admins || Boolean(adminItem);
   if (!allowed) return json(res, 404, { error: "not_found" });
 
   if (!["GET", "PATCH", "POST", "DELETE"].includes(req.method)) {
     return json(res, 405, { error: "method_not_allowed" });
   }
 
-  if (req.method === "PATCH" && !(match && pathname.endsWith("/settings"))) {
+  if (req.method === "PATCH" && !(match && pathname.endsWith("/settings")) && !adminItem) {
     return json(res, 405, { error: "method_not_allowed" });
   }
-  if (req.method === "POST" && !((match && pathname.endsWith("/filters")) || userAction)) {
+  if (req.method === "POST" && !((match && pathname.endsWith("/filters")) || userAction || admins)) {
     return json(res, 405, { error: "method_not_allowed" });
   }
-  if (req.method === "DELETE" && !filterDelete) {
+  if (req.method === "DELETE" && !filterDelete && !adminItem) {
     return json(res, 405, { error: "method_not_allowed" });
   }
 
@@ -168,6 +199,9 @@ export default async function handler(req, res) {
   const headers = {
     Authorization: `Bearer ${secret("GHOSTEA_API_KEY")}`,
     Accept: "application/json",
+    "X-Ghostea-Admin-Id": session.admin_id,
+    "X-Ghostea-Role": session.role,
+    "X-Ghostea-Username": session.username,
   };
 
   let body;

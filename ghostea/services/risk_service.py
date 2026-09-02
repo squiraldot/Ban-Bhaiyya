@@ -95,24 +95,66 @@ class RiskService:
         since = (
             datetime.now(timezone.utc) - timedelta(days=days)
         ).isoformat()
-        data = await self.store.get_analytics(chat_id, since)
-        logs = data.get("logs", [])
-        warnings = data.get("warnings", [])
         now = datetime.now(timezone.utc)
+
+        # Fetch only the bounded fields required by the risk engine. Keeping
+        # the query narrow is important for groups with tens of thousands of
+        # members.
+        errors = []
+        try:
+            logs = await self.store._call(
+                self.store.db.select,
+                "ghostea_moderation_logs",
+                {
+                    "chat_id": f"eq.{chat_id}",
+                    "created_at": f"gte.{since}",
+                    "select": "user_id,action,reason,details,created_at",
+                    "order": "created_at.desc",
+                    "limit": "1000",
+                },
+            )
+        except Exception:
+            logger = __import__("logging").getLogger("Ghostea")
+            logger.exception("Risk log query failed for chat=%s", chat_id)
+            logs = []
+            errors.append("logs")
+
+        try:
+            warnings = await self.store._call(
+                self.store.db.select,
+                "ghostea_warning_history",
+                {
+                    "chat_id": f"eq.{chat_id}",
+                    "created_at": f"gte.{since}",
+                    "select": "user_id,reason,source,created_at",
+                    "order": "created_at.desc",
+                    "limit": "1000",
+                },
+            )
+        except Exception:
+            logger = __import__("logging").getLogger("Ghostea")
+            logger.exception("Risk warning query failed for chat=%s", chat_id)
+            warnings = []
+            errors.append("warnings")
+
+        if errors and not logs and not warnings:
+            raise RuntimeError("risk_data_unavailable")
 
         users = {}
         categories = Counter()
 
         def bucket(user_id):
             key = str(user_id)
-            return users.setdefault(key, {
-                "user_id": int(user_id),
-                "risk_score": 0.0,
-                "events": 0,
-                "warnings": 0,
-                "categories": Counter(),
-                "last_activity": None,
-            })
+            if key not in users:
+                users[key] = {
+                    "user_id": int(user_id),
+                    "risk_score": 0.0,
+                    "events": 0,
+                    "warnings": 0,
+                    "categories": Counter(),
+                    "last_activity": None,
+                }
+            return users[key]
 
         for row in logs:
             user_id = row.get("user_id")
@@ -168,16 +210,16 @@ class RiskService:
                 "last_activity": item["last_activity"],
             })
 
-        result.sort(
-            key=lambda x: (x["risk_score"], x["events"]),
-            reverse=True,
-        )
-
+        result.sort(key=lambda x: (x["risk_score"], x["events"]), reverse=True)
         return {
             "days": days,
             "users": result[:limit],
             "total_users": len(result),
             "category_breakdown": dict(categories),
+            "sampled_events": len(logs) + len(warnings),
+            "partial": bool(errors),
+            "failed_sources": errors,
+            "sample_cap": 2000,
         }
 
     async def user(self, chat_id, user_id, days=30):

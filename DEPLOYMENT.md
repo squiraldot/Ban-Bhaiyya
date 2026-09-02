@@ -87,3 +87,22 @@ Rotate any secret that has ever been committed to Git or shared publicly.
 
 ### Phase 10
 Run the updated `database.sql` once in Supabase to create `ghostea_user_admin_actions`. No new environment variables are required.
+
+
+## Phase 14 setup
+
+1. Run the new Phase 14 section in `database.sql` in Supabase.
+2. Render environment:
+   - `GHOSTEA_SUPERADMIN_USERNAME` (optional; defaults to `superadmin`)
+   - keep `GHOSTEA_ADMIN_PASSWORD` as the initial Super Admin password.
+3. Vercel environment stays:
+   - `GHOSTEA_API_URL`
+   - `GHOSTEA_API_KEY`
+   - `GHOSTEA_SESSION_SECRET`
+4. Login with the Super Admin username/password once. Ghostea creates the
+   database-backed Super Admin using a scrypt password hash.
+5. Create other dashboard admins from **👑 Admins**. Only Super Admin can
+   manage dashboard admins.
+6. Roles: `super_admin`, `admin`, `moderator`, `viewer`.
+7. Server-side RBAC is enforced on Render; dashboard UI hiding is only a
+   convenience and is not the security boundary.

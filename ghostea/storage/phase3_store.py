@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import datetime, timezone
 
 from ghostea.config import (
@@ -17,11 +18,19 @@ class Phase3Store:
     def __init__(self, db):
         self.db = db
         self._warning_lock = asyncio.Lock()
+        self._settings_cache = {}
+        self._filters_cache = {}
+        self._cache_ttl = 10.0
 
     async def _call(self, fn, *args, **kwargs):
         return await asyncio.to_thread(fn, *args, **kwargs)
 
     async def get_settings(self, chat_id):
+        now = time.monotonic()
+        cached = self._settings_cache.get(int(chat_id))
+        if cached and cached[0] > now:
+            return dict(cached[1])
+
         rows = await self._call(
             self.db.select,
             "ghostea_group_settings",
@@ -29,6 +38,7 @@ class Phase3Store:
         )
 
         if rows:
+            self._settings_cache[int(chat_id)] = (now + self._cache_ttl, dict(rows[0]))
             return rows[0]
 
         defaults = {
@@ -64,6 +74,7 @@ class Phase3Store:
         }
 
         await self._call(self.db.upsert, "ghostea_group_settings", defaults)
+        self._settings_cache[int(chat_id)] = (time.monotonic() + self._cache_ttl, dict(defaults))
         return defaults
 
     async def update_settings(self, chat_id, changes):
@@ -75,6 +86,7 @@ class Phase3Store:
             changes,
             {"chat_id": f"eq.{chat_id}"},
         )
+        self._settings_cache.pop(int(chat_id), None)
         return rows[0] if rows else await self.get_settings(chat_id)
 
     async def get_warning_count(self, chat_id, user_id):
@@ -151,7 +163,7 @@ class Phase3Store:
         )
 
     async def add_custom_filter(self, chat_id, filter_type, value):
-        return await self._call(
+        result = await self._call(
             self.db.upsert,
             "ghostea_custom_filters",
             {
@@ -161,9 +173,12 @@ class Phase3Store:
                 "enabled": True,
             },
         )
+        self._filters_cache.pop((int(chat_id), filter_type), None)
+        self._filters_cache.pop((int(chat_id), "*"), None)
+        return result
 
     async def remove_custom_filter(self, chat_id, filter_type, value):
-        return await self._call(
+        result = await self._call(
             self.db.delete,
             "ghostea_custom_filters",
             {
@@ -172,8 +187,17 @@ class Phase3Store:
                 "value": f"eq.{value}",
             },
         )
+        self._filters_cache.pop((int(chat_id), filter_type), None)
+        self._filters_cache.pop((int(chat_id), "*"), None)
+        return result
 
     async def get_custom_filters(self, chat_id, filter_type=None):
+        key = (int(chat_id), filter_type or "*")
+        now = time.monotonic()
+        cached = self._filters_cache.get(key)
+        if cached and cached[0] > now:
+            return list(cached[1])
+
         query = {
             "chat_id": f"eq.{chat_id}",
             "enabled": "eq.true",
@@ -182,14 +206,16 @@ class Phase3Store:
         if filter_type:
             query["filter_type"] = f"eq.{filter_type}"
 
-        return await self._call(
+        rows = await self._call(
             self.db.select,
             "ghostea_custom_filters",
             query,
         )
+        self._filters_cache[key] = (time.monotonic() + self._cache_ttl, list(rows))
+        return rows
 
     async def log(self, chat_id, user_id, action, reason="", details=""):
-        return await self._call(
+        result = await self._call(
             self.db.insert,
             "ghostea_moderation_logs",
             {
@@ -200,6 +226,7 @@ class Phase3Store:
                 "details": details,
             },
         )
+        return result
 
     async def recent_logs(self, chat_id, limit=20):
         return await self._call(
@@ -213,11 +240,18 @@ class Phase3Store:
         )
 
     async def record_join(self, chat_id, user_id):
-        return await self._call(
+        result = await self._call(
             self.db.insert,
             "ghostea_join_events",
             {"chat_id": chat_id, "user_id": user_id},
         )
+        await self._call(
+            self.db.upsert,
+            "ghostea_user_directory",
+            {"chat_id": chat_id, "user_id": user_id,
+             "last_activity": datetime.now(timezone.utc).isoformat()},
+        )
+        return result
 
     async def log_raid_event(self, chat_id, action, details=""):
         return await self._call(
@@ -348,63 +382,52 @@ class Phase3Store:
         )
 
     async def get_user_directory(self, chat_id, limit=100):
-        """Return unique users seen in warnings, moderation logs and reputation."""
+        """Use the DB-side directory view so large groups do not fan out queries."""
         limit = max(1, min(int(limit), 500))
-        warnings = await self._call(
-            self.db.select,
-            "ghostea_warning_history",
-            {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "500"},
-        )
-        logs = await self._call(
-            self.db.select,
-            "ghostea_moderation_logs",
-            {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "500"},
-        )
-        reputation = await self._call(
-            self.db.select,
-            "ghostea_reputation",
-            {"chat_id": f"eq.{chat_id}", "limit": "500"},
-        )
-
-        users = {}
-        def ensure(uid):
-            key = str(uid)
-            if key not in users:
-                users[key] = {
-                    "user_id": int(uid),
-                    "warnings": 0,
-                    "actions": 0,
-                    "reputation": 0,
-                    "last_activity": None,
-                }
-            return users[key]
-
-        for row in warnings:
-            uid = row.get("user_id")
-            if uid is None: continue
-            u=ensure(uid); u["warnings"] += 1
-            ts=row.get("created_at")
-            if ts and (not u["last_activity"] or str(ts)>str(u["last_activity"])):
-                u["last_activity"]=ts
-
-        for row in logs:
-            uid=row.get("user_id")
-            if uid is None: continue
-            u=ensure(uid); u["actions"] += 1
-            ts=row.get("created_at")
-            if ts and (not u["last_activity"] or str(ts)>str(u["last_activity"])):
-                u["last_activity"]=ts
-
-        for row in reputation:
-            uid=row.get("user_id")
-            if uid is None: continue
-            u=ensure(uid); u["reputation"]=int(row.get("score") or 0)
-
-        result=list(users.values())
-        result.sort(key=lambda x: (
-            x["last_activity"] or "", x["warnings"], x["actions"]
-        ), reverse=True)
-        return result[:limit]
+        try:
+            rows = await self._call(
+                self.db.select,
+                "ghostea_user_directory_view",
+                {
+                    "chat_id": f"eq.{chat_id}",
+                    "order": "last_activity.desc",
+                    "limit": str(limit),
+                },
+            )
+            return rows
+        except Exception:
+            # Backward-compatible fallback until the Phase 14 SQL view is run.
+            warnings = await self._call(
+                self.db.select,
+                "ghostea_warning_history",
+                {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "200"},
+            )
+            logs = await self._call(
+                self.db.select,
+                "ghostea_moderation_logs",
+                {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "200"},
+            )
+            users = {}
+            for row in warnings + logs:
+                uid = row.get("user_id")
+                if uid is None:
+                    continue
+                item = users.setdefault(str(uid), {
+                    "user_id": int(uid), "warnings": 0, "actions": 0,
+                    "reputation": 0, "last_activity": row.get("created_at"),
+                })
+                if row in warnings:
+                    item["warnings"] += 1
+                else:
+                    item["actions"] += 1
+                ts = row.get("created_at")
+                if ts and (not item["last_activity"] or str(ts) > str(item["last_activity"])):
+                    item["last_activity"] = ts
+            return sorted(
+                users.values(),
+                key=lambda x: (x["last_activity"] or "", x["warnings"], x["actions"]),
+                reverse=True,
+            )[:limit]
 
     async def get_reputation(self, chat_id, user_id):
         rows = await self._call(

@@ -9,7 +9,8 @@ from urllib.parse import parse_qs, urlparse
 
 MAX_BODY_BYTES = 32 * 1024
 RATE_WINDOW_SECONDS = 60
-RATE_MAX_REQUESTS = 60
+RATE_MAX_REQUESTS = 300
+GET_CACHE_TTL = 5.0
 
 
 def _configured_origin():
@@ -41,7 +42,7 @@ def _json(handler, status, payload):
     )
     handler.send_header(
         "Access-Control-Allow-Methods",
-        "GET, PATCH, OPTIONS",
+        "GET, PATCH, POST, DELETE, OPTIONS",
     )
     handler.end_headers()
 
@@ -52,9 +53,12 @@ def _json(handler, status, payload):
 class DashboardHandler(BaseHTTPRequestHandler):
     store = None
     analytics = None
+    admins = None
     user_management = None
     _rate_lock = threading.Lock()
     _rate = defaultdict(deque)
+    _cache_lock = threading.Lock()
+    _cache = {}
 
     def log_message(self, fmt, *args):
         return
@@ -77,6 +81,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         _json(self, 204, {})
 
+    @classmethod
+    def _cached_json(cls, key):
+        now = time.monotonic()
+        with cls._cache_lock:
+            item = cls._cache.get(key)
+            if item and item[0] > now:
+                return item[1]
+            if item:
+                cls._cache.pop(key, None)
+        return None
+
+    @classmethod
+    def _put_cache(cls, key, payload):
+        with cls._cache_lock:
+            cls._cache[key] = (time.monotonic() + GET_CACHE_TTL, payload)
+        return payload
+
     def _authorized(self):
         expected = os.getenv("DASHBOARD_API_KEY", "").strip()
         supplied = self.headers.get("Authorization", "")
@@ -88,6 +109,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # Vercel's server-side proxy intentionally does not send a browser
         # Origin header. Direct browser calls must match the configured origin.
         return not origin or not request_origin or request_origin == origin
+
+    def _require_permission(self, permission):
+        role = self.headers.get("X-Ghostea-Role", "")
+        admin_id = self.headers.get("X-Ghostea-Admin-Id", "")
+        if self.admins and self.admins.allowed(role, permission):
+            try:
+                current = self.store._run_async(
+                    self.admins.authorize(admin_id, role)
+                )
+            except Exception:
+                current = None
+            if current:
+                return True
+        _json(self, 403, {"error": "permission_denied"})
+        return False
+
+    def _require_read(self):
+        return self._require_permission("read")
+
+    def _require_moderate(self):
+        return self._require_permission("moderate")
 
     def _protected(self):
         if self._rate_limited(self):
@@ -116,6 +158,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
 
         try:
+            # Authentication/identity is delegated from the Vercel session proxy.
+            if path == "/api/auth/me":
+                role = self.headers.get("X-Ghostea-Role", "")
+                admin_id = self.headers.get("X-Ghostea-Admin-Id", "")
+                username = self.headers.get("X-Ghostea-Username", "")
+                return _json(self, 200, {
+                    "authenticated": True,
+                    "admin": {
+                        "id": int(admin_id) if admin_id.isdigit() else 0,
+                        "username": username,
+                        "role": role,
+                    },
+                })
+
+            if path == "/api/auth/admins":
+                if not self._require_permission("manage_admins"):
+                    return
+                rows = self.store._run_async(self.admins.list_admins())
+                return _json(self, 200, {"admins": rows})
+
             if path == "/api/health":
                 # This is a real database check rather than a hard-coded flag.
                 self.store._call_sync(
@@ -130,14 +192,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 })
 
             if path == "/api/groups":
+                if not self._require_read(): return
+                cache_key = f"groups:{self.headers.get('X-Ghostea-Admin-Id','')}"
+                cached = self._cached_json(cache_key)
+                if cached is not None:
+                    return _json(self, 200, cached)
                 rows = self.store._call_sync(
                     self.store.db.select,
                     "ghostea_group_settings",
                     {"select": "*", "order": "updated_at.desc", "limit": "200"},
                 )
-                return _json(self, 200, {"groups": rows})
+                return _json(self, 200, self._put_cache(cache_key, {"groups": rows}))
 
             if path.startswith("/api/groups/") and path.endswith("/analytics"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
@@ -150,6 +218,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return _json(self, 200, report)
 
             if path.startswith("/api/groups/") and path.endswith("/risk"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
@@ -158,24 +227,39 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 days = max(1, min(days, 90))
                 if self.risk is None:
                     return _json(self, 503, {"error": "risk_unavailable"})
-                report = self.store._run_async(
-                    self.risk.report(chat_id, days=days, limit=50)
-                )
-                return _json(self, 200, report)
+                cache_key = f"risk:{chat_id}:{days}"
+                cached = self._cached_json(cache_key)
+                if cached is not None:
+                    return _json(self, 200, cached)
+                try:
+                    report = self.store._run_async(
+                        self.risk.report(chat_id, days=days, limit=50)
+                    )
+                except RuntimeError as error:
+                    if str(error) == "risk_data_unavailable":
+                        return _json(self, 503, {"error": "risk_data_unavailable"})
+                    raise
+                return _json(self, 200, self._put_cache(cache_key, report))
 
             if path.startswith("/api/groups/") and path.endswith("/users"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
                 chat_id = int(parts[3])
                 limit = int(parse_qs(parsed.query).get("limit", ["100"])[0])
                 limit = max(1, min(limit, 500))
+                cache_key = f"users:{chat_id}:{limit}"
+                cached = self._cached_json(cache_key)
+                if cached is not None:
+                    return _json(self, 200, cached)
                 users = self.store._run_async(
                     self.store.get_user_directory(chat_id, limit)
                 )
-                return _json(self, 200, {"users": users})
+                return _json(self, 200, self._put_cache(cache_key, {"users": users}))
 
             if path.startswith("/api/groups/") and "/users/" in path and path.endswith("/profile"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 6:
                     return _json(self, 404, {"error": "not_found"})
@@ -189,6 +273,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return _json(self, 200, profile)
 
             if path.startswith("/api/groups/") and path.endswith("/settings"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
@@ -201,6 +286,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return _json(self, 200, settings[0] if settings else {})
 
             if path.startswith("/api/groups/") and path.endswith("/logs"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
@@ -215,6 +301,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return _json(self, 200, {"logs": logs})
 
             if path.startswith("/api/groups/") and path.endswith("/filters"):
+                if not self._require_read(): return
                 parts = path.split("/")
                 if len(parts) != 5:
                     return _json(self, 404, {"error": "not_found"})
@@ -235,10 +322,63 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+
+        # Vercel authenticates against this server-to-server endpoint.
+        if parsed.path == "/api/auth/login":
+            if self._rate_limited(self):
+                return _json(self, 429, {"error": "rate_limited"})
+            if not self._authorized() or not self._origin_allowed():
+                return _json(self, 401, {"error": "unauthorized"})
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > MAX_BODY_BYTES:
+                    return _json(self, 413, {"error": "payload_too_large"})
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                if not isinstance(payload, dict):
+                    return _json(self, 400, {"error": "object_required"})
+                admin = self.admins and self.store._run_async(
+                    self.admins.authenticate(
+                        payload.get("username"), payload.get("password")
+                    )
+                )
+                if not admin:
+                    return _json(self, 401, {"error": "invalid_credentials"})
+                return _json(self, 200, {"ok": True, "admin": admin})
+            except json.JSONDecodeError:
+                return _json(self, 400, {"error": "invalid_json"})
+            except Exception:
+                return _json(self, 500, {"error": "internal_server_error"})
+
         if not self._protected():
             return
         parts = parsed.path.split("/")
+        if parsed.path == "/api/auth/admins":
+            if not self._require_permission("manage_admins"):
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > MAX_BODY_BYTES:
+                    return _json(self, 413, {"error": "payload_too_large"})
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                admin = self.store._run_async(
+                    self.admins.create(
+                        payload.get("username"),
+                        payload.get("password"),
+                        payload.get("role"),
+                        payload.get("display_name", ""),
+                    )
+                )
+                return _json(self, 201, {"admin": admin})
+            except ValueError as e:
+                return _json(self, 400, {"error": str(e)})
+            except json.JSONDecodeError:
+                return _json(self, 400, {"error": "invalid_json"})
+            except Exception:
+                return _json(self, 500, {"error": "internal_server_error"})
+
         if len(parts) == 5 and parts[1] == "api" and parts[2] == "groups" and parts[4] == "users":
+            if not self._require_permission("moderate"):
+                return
             try:
                 chat_id = int(parts[3])
                 length = int(self.headers.get("Content-Length", "0"))
@@ -306,6 +446,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         parts = parsed.path.split("/")
         if len(parts) != 5 or parts[1] != "api" or parts[2] != "groups" or parts[4] != "filters":
             return _json(self, 404, {"error": "not_found"})
+        if not self._require_permission("settings"):
+            return
         try:
             chat_id = int(parts[3])
             length = int(self.headers.get("Content-Length", "0"))
@@ -338,9 +480,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if not self._protected():
             return
-        parts = urlparse(self.path).path.split("/")
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/auth/admins/"):
+            if not self._require_permission("manage_admins"):
+                return
+            try:
+                admin_id = int(parsed.path.split("/")[-1])
+                current_admin_id = int(self.headers.get("X-Ghostea-Admin-Id", "0") or 0)
+                if admin_id == current_admin_id:
+                    return _json(self, 400, {"error": "cannot_delete_current_admin"})
+                result = self.store._run_async(self.admins.delete(admin_id))
+                return _json(self, 200, result)
+            except ValueError as e:
+                return _json(self, 400, {"error": str(e)})
+            except Exception:
+                return _json(self, 500, {"error": "internal_server_error"})
+
+        parts = parsed.path.split("/")
         if len(parts) != 6 or parts[1] != "api" or parts[2] != "groups" or parts[4] != "filters":
             return _json(self, 404, {"error": "not_found"})
+        if not self._require_permission("settings"):
+            return
         try:
             chat_id = int(parts[3])
             filter_id = int(parts[5])
@@ -360,11 +520,35 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
 
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/auth/admins/"):
+            if not self._require_permission("manage_admins"):
+                return
+            try:
+                admin_id = int(parsed.path.split("/")[-1])
+                current_admin_id = int(self.headers.get("X-Ghostea-Admin-Id", "0") or 0)
+                if admin_id == current_admin_id:
+                    return _json(self, 400, {"error": "cannot_modify_current_admin"})
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > MAX_BODY_BYTES:
+                    return _json(self, 413, {"error": "payload_too_large"})
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                result = self.store._run_async(self.admins.update(admin_id, payload))
+                return _json(self, 200, {"admin": result})
+            except ValueError as e:
+                return _json(self, 400, {"error": str(e)})
+            except json.JSONDecodeError:
+                return _json(self, 400, {"error": "invalid_json"})
+            except Exception:
+                return _json(self, 500, {"error": "internal_server_error"})
+
         if not (
             parsed.path.startswith("/api/groups/")
             and parsed.path.endswith("/settings")
         ):
             return _json(self, 404, {"error": "not_found"})
+
+        if not self._require_permission("settings"):
+            return
 
         try:
             parts = parsed.path.split("/")
@@ -458,11 +642,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return _json(self, 500, {"error": "internal_server_error"})
 
 
-def start_web_server(store, analytics, bot=None, risk=None):
+def start_web_server(store, analytics, bot=None, risk=None, admins=None):
     port = int(os.getenv("PORT", "10000"))
     DashboardHandler.store = store
     DashboardHandler.analytics = analytics
     DashboardHandler.risk = risk
+    DashboardHandler.admins = admins
     DashboardHandler.user_management = None
 
     server = ThreadingHTTPServer(("0.0.0.0", port), DashboardHandler)

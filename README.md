@@ -254,3 +254,17 @@ Phase 13 fixes the Admin Dashboard Users and Risk Center data flow.
 - User profiles continue to show advisory risk.
 - Fixed an HTML section nesting issue between Moderation Logs and Risk Center.
 - Existing moderation behavior is unchanged.
+
+
+## Phase 14 — Scale + RBAC Admin Dashboard
+
+- Added database-backed dashboard admins with `super_admin`, `admin`, `moderator`, and `viewer` roles.
+- Super Admin is the only role allowed to create, edit, disable, or delete dashboard admins.
+- Passwords are stored as scrypt hashes, never plaintext.
+- Server-side RBAC is enforced on Render; hiding dashboard buttons is not the security boundary.
+- Added a lightweight known-user directory table/view so the Users tab does not scan three large tables for every refresh.
+- Added short-lived settings/filter caches to reduce Supabase load.
+- Increased proxy rate budget and changed group loading from six parallel requests to a sequential flow.
+- Risk queries are bounded and request only required fields, with a visible sample cap for very busy groups.
+- A 50,000-member Telegram group should not be treated as a list to load into the dashboard. Ghostea indexes users it actually observes; it does not attempt to enumerate all Telegram members.
+- Run the Phase 14 SQL additions in Supabase once before using RBAC/optimized Users.
