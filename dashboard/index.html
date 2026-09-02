@@ -551,6 +551,99 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
+/* Final UI adjustments: compact topbar controls + zero native select dialogs */
+#app>.topbar .topbar-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0;
+}
+#app>.topbar .topbar-action{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-width:42px;min-height:42px;padding:0 12px;
+  border-radius:11px;background:#11181c;border:1px solid rgba(255,255,255,.11);
+}
+#app>.topbar .topbar-action svg{
+  width:17px;height:17px;flex:none;stroke:currentColor;fill:none;
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
+}
+#app>.topbar .topbar-action span{font-size:12px;font-weight:750}
+#app>.topbar #roleBadge{
+  order:0;margin-left:0;padding:7px 11px;max-width:150px;overflow:hidden;
+  text-overflow:ellipsis;text-transform:capitalize;
+}
+#app>.topbar #status{order:-1}
+@media(max-width:720px){
+  #app>.topbar{display:flex;align-items:center}
+  #app>.topbar .topbar-actions{gap:6px;flex:0 0 auto}
+  #app>.topbar .topbar-action{
+    width:42px;height:42px;min-width:42px;padding:0;border-radius:11px;
+  }
+  #app>.topbar .topbar-action span{display:none}
+  #app>.topbar #roleBadge{
+    display:inline-flex!important;max-width:112px;min-height:38px;padding:7px 10px;
+    font-size:10px;overflow:hidden;text-overflow:ellipsis;
+  }
+}
+@media(max-width:420px){
+  #app>.topbar .topbar-actions{gap:5px}
+  #app>.topbar .topbar-action{width:39px;height:39px;min-width:39px}
+  #app>.topbar .topbar-action svg{width:16px;height:16px}
+  #app>.topbar #roleBadge{max-width:96px;padding-inline:8px}
+}
+
+/* Custom select trigger. The real select remains as a value store only. */
+.gx-native-select{
+  position:absolute!important;width:1px!important;height:1px!important;
+  min-height:1px!important;margin:-1px!important;padding:0!important;border:0!important;
+  opacity:0!important;pointer-events:none!important;clip:rect(0 0 0 0)!important;
+}
+.gx-select-wrap{position:relative;width:100%;min-width:0}
+.gx-select-trigger{
+  width:100%;min-height:42px;padding:10px 38px 10px 12px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  text-align:left;color:var(--gx-text);background:#090e11;
+  border:1px solid var(--gx-line2);border-radius:10px;
+}
+.gx-select-trigger:hover{border-color:rgba(255,255,255,.18);background:#0c1215}
+.gx-select-trigger:focus-visible{outline:2px solid rgba(184,242,109,.72);outline-offset:2px}
+.gx-select-value{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gx-select-chevron{
+  position:absolute;right:12px;width:8px;height:8px;
+  border-right:1.7px solid #8d9993;border-bottom:1.7px solid #8d9993;
+  transform:rotate(45deg) translateY(-2px);pointer-events:none;
+}
+
+/* Select dialog shares the same custom dialog system and never opens the browser picker. */
+.gx-select-dialog .gx-dialog-title{margin-bottom:4px}
+.gx-select-options{
+  display:grid;gap:6px;margin-top:16px;
+}
+.gx-select-option{
+  width:100%;min-height:46px;padding:11px 13px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid rgba(255,255,255,.085);border-radius:11px;
+  background:#0d1418;color:#dce5df;text-align:left;
+}
+.gx-select-option:hover{background:#151e22;border-color:rgba(184,242,109,.22)}
+.gx-select-option.is-selected{
+  background:rgba(184,242,109,.085);
+  border-color:rgba(184,242,109,.30);color:#d9ffae;
+}
+.gx-select-option-mark{
+  width:17px;height:17px;display:grid;place-items:center;flex:none;
+  border:1px solid #59655f;border-radius:50%;font-size:11px;color:transparent;
+}
+.gx-select-option.is-selected .gx-select-option-mark{
+  border-color:var(--gx-accent);background:var(--gx-accent);color:#0b1009;
+}
+.gx-select-close{
+  width:100%;margin-top:12px;
+}
+@media(max-width:720px){
+  .gx-select-dialog .gx-dialog{padding-top:18px}
+  .gx-select-options{gap:5px}
+  .gx-select-option{min-height:48px}
+}
+
 </style>
 
 </head>
@@ -566,7 +659,15 @@ dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-b
 <section id="app" class="hidden">
   <div class="topbar">
     <div class="brand"><span class="brand-mark nav-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M8 19a12 12 0 0 1 24 0v12l-4-2-4 2-4-2-4 2-4-2-4 2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="16" cy="19" r="1.7" fill="currentColor" stroke="none"/><circle cx="24" cy="19" r="1.7" fill="currentColor" stroke="none"/></svg></span><div><h1>Ghostea</h1><p>Admin Control Center</p></div></div>
-    <div class="row"><span id="status" class="badge">Checking…</span><button id="refreshBtn">↻ Refresh</button><button id="logoutBtn">Logout</button></div>
+    <div class="topbar-actions">
+      <span id="status" class="badge">Checking…</span>
+      <button id="refreshBtn" class="topbar-action" aria-label="Refresh dashboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3M4 5v4h4"/><path d="M4 13a8 8 0 0 0 14.9 3M20 19v-4h-4"/></svg><span>Refresh</span>
+      </button>
+      <button id="logoutBtn" class="topbar-action" aria-label="Logout">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 4v16"/></svg><span>Logout</span>
+      </button>
+    </div>
   </div>
 
   <div class="layout">
@@ -855,17 +956,17 @@ async function userAction(action){
 </script>
 
 <script id="ghostea-custom-dialog-ui">
-/* UI-only dialog layer. Replaces native browser confirm/prompt visuals. */
+/* Ghostea UI dialog controller: confirmations, prompts, alerts and all select pickers. */
 (()=>{
   const escHtml=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const base=(title,message,body,actions)=>{
+  const base=(title,message,body,actions,extraClass='')=>{
     const b=document.createElement('div');
-    b.className='gx-dialog-backdrop';
+    b.className='gx-dialog-backdrop '+extraClass;
     b.innerHTML=`<div class="gx-dialog" role="dialog" aria-modal="true" aria-labelledby="gx-title">
       <h2 id="gx-title" class="gx-dialog-title">${escHtml(title)}</h2>
       <p class="gx-dialog-text">${escHtml(message)}</p>
       ${body||''}
-      <div class="gx-dialog-actions">${actions}</div>
+      ${actions?`<div class="gx-dialog-actions">${actions}</div>`:''}
     </div>`;
     document.body.appendChild(b);
     const box=b.querySelector('.gx-dialog');
@@ -876,6 +977,7 @@ async function userAction(action){
     box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close()}});
     return {b,box,close};
   };
+
   window.gxConfirm=(message,opts={})=>new Promise(resolve=>{
     const danger=opts.danger?'gx-danger':'';
     const d=base(opts.title||'Confirm action',message,'',
@@ -883,24 +985,124 @@ async function userAction(action){
     d.box.querySelector('[data-cancel]').onclick=()=>{d.close();resolve(false)};
     d.box.querySelector('[data-ok]').onclick=()=>{d.close();resolve(true)};
   });
+
   window.gxPrompt=(message,defaultValue='',opts={})=>new Promise(resolve=>{
-    const body=opts.type==='select'
-      ? `<select class="gx-dialog-select" data-value>${(opts.options||[]).map(x=>`<option value="${escHtml(x.value)}">${escHtml(x.label)}</option>`).join('')}</select>`
-      : `<input class="gx-dialog-input" data-value type="${opts.type==='password'?'password':'text'}" value="${escHtml(defaultValue)}" placeholder="${escHtml(opts.placeholder||'')}">`;
+    let body='';
+    if(opts.type==='select'){
+      body=`<div class="gx-select-options" data-value>`;
+      body+=(opts.options||[]).map((x,i)=>`<button type="button" class="gx-select-option ${String(x.value)===String(defaultValue)?'is-selected':''}" data-option="${escHtml(x.value)}">
+        <span>${escHtml(x.label)}</span><span class="gx-select-option-mark">${String(x.value)===String(defaultValue)?'✓':''}</span>
+      </button>`).join('');
+      body+='</div>';
+    }else{
+      body=`<input class="gx-dialog-input" data-value type="${opts.type==='password'?'password':'text'}" value="${escHtml(defaultValue)}" placeholder="${escHtml(opts.placeholder||'')}">`;
+    }
     const d=base(opts.title||'Enter value',message,body,
       `<button type="button" data-cancel>Cancel</button><button type="button" class="gx-primary" data-ok>${escHtml(opts.ok||'Save')}</button>`);
-    const value=d.box.querySelector('[data-value]');
-    if(opts.type==='select' && defaultValue) value.value=defaultValue;
-    const submit=()=>{const v=value.value.trim();d.close();resolve(v)};
+    if(opts.type==='select'){
+      d.box.querySelectorAll('[data-option]').forEach(btn=>btn.onclick=()=>{
+        d.box.querySelectorAll('[data-option]').forEach(x=>x.classList.remove('is-selected'));
+        btn.classList.add('is-selected');
+        d.box.dataset.selected=btn.dataset.option;
+        btn.querySelector('.gx-select-option-mark').textContent='✓';
+        d.box.querySelectorAll('.gx-select-option-mark').forEach(x=>{if(x!==btn.querySelector('.gx-select-option-mark'))x.textContent=''});
+      });
+    }
+    const submit=()=>{
+      let v;
+      if(opts.type==='select') v=d.box.dataset.selected ?? defaultValue;
+      else v=d.box.querySelector('[data-value]').value.trim();
+      d.close();resolve(v);
+    };
     d.box.querySelector('[data-cancel]').onclick=()=>{d.close();resolve(null)};
     d.box.querySelector('[data-ok]').onclick=submit;
-    value.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit()}});
+    const value=d.box.querySelector('[data-value]');
+    if(value) value.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit()}});
+    if(opts.type==='select') d.box.dataset.selected=defaultValue;
   });
+
   window.gxAlert=(message,opts={})=>new Promise(resolve=>{
     const d=base(opts.title||'Notice',message,'',
       `<button type="button" class="gx-primary" data-ok>${escHtml(opts.ok||'OK')}</button>`);
     d.box.querySelector('[data-ok]').onclick=()=>{d.close();resolve(true)};
   });
+
+  function labelFor(select){
+    const explicit=select.getAttribute('aria-label');
+    if(explicit)return explicit;
+    const id=select.id;
+    if(id){
+      const l=document.querySelector(`label[for="${CSS.escape(id)}"]`);
+      if(l)return l.textContent.trim();
+    }
+    const parent=select.closest('.field,.setting,.section-title');
+    const l=parent?.querySelector('label,h2,h3');
+    return l?.textContent.trim()||'Choose an option';
+  }
+
+  function syncSelect(select){
+    const wrap=select.nextElementSibling;
+    if(!wrap?.classList.contains('gx-select-wrap'))return;
+    const trigger=wrap.querySelector('.gx-select-trigger');
+    const value=wrap.querySelector('.gx-select-value');
+    const opt=Array.from(select.options).find(o=>o.value===select.value) || select.options[select.selectedIndex];
+    if(value)value.textContent=opt?.textContent?.trim()||'Select…';
+    if(trigger)trigger.setAttribute('aria-label',`${labelFor(select)}: ${opt?.textContent?.trim()||'Select'}`);
+  }
+
+  function openSelect(select){
+    const options=Array.from(select.options);
+    const title=labelFor(select);
+    const body=`<div class="gx-select-options">${options.map(o=>`
+      <button type="button" class="gx-select-option ${o.value===select.value?'is-selected':''}" data-select-value="${escHtml(o.value)}">
+        <span>${escHtml(o.textContent.trim())}</span>
+        <span class="gx-select-option-mark">${o.value===select.value?'✓':''}</span>
+      </button>`).join('')}</div>`;
+    const d=base(title,'Select an option',body,'','gx-select-dialog');
+    d.box.querySelectorAll('[data-select-value]').forEach(btn=>{
+      btn.onclick=()=>{
+        const v=btn.dataset.selectValue;
+        select.value=v;
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+        syncSelect(select);
+        d.close();
+      };
+    });
+  }
+
+  function enhanceSelect(select){
+    if(select.dataset.gxEnhanced==='1')return;
+    select.dataset.gxEnhanced='1';
+    select.classList.add('gx-native-select');
+    select.tabIndex=-1;
+    const wrap=document.createElement('div');
+    wrap.className='gx-select-wrap';
+    const trigger=document.createElement('button');
+    trigger.type='button';
+    trigger.className='gx-select-trigger';
+    trigger.setAttribute('aria-haspopup','dialog');
+    trigger.innerHTML='<span class="gx-select-value"></span><span class="gx-select-chevron" aria-hidden="true"></span>';
+    wrap.appendChild(trigger);
+    select.after(wrap);
+    trigger.onclick=()=>openSelect(select);
+    syncSelect(select);
+  }
+
+  function enhanceAllSelects(){
+    document.querySelectorAll('select:not(.gx-native-select)').forEach(enhanceSelect);
+  }
+
+  /* Keep custom triggers in sync when existing dashboard code changes select.value. */
+  const desc=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
+  if(desc?.get && desc?.set){
+    Object.defineProperty(HTMLSelectElement.prototype,'value',{
+      configurable:desc.configurable,enumerable:desc.enumerable,
+      get:desc.get,
+      set:function(v){desc.set.call(this,v);syncSelect(this);}
+    });
+  }
+
+  enhanceAllSelects();
 })();
 </script>
 
