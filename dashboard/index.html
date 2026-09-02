@@ -325,6 +325,394 @@ button.danger:hover{border-color:rgba(255,113,128,.65);background:rgba(255,113,1
 }
 </style>
 
+
+<style id="ghostea-mobile-app-ui">
+/* ============================================================
+   Ghostea Mobile App Shell — UI ONLY
+   No JS, API, backend or data behavior changes.
+   ============================================================ */
+@media (max-width: 720px){
+  :root{
+    --mobile-nav-h: 72px;
+    --mobile-top-h: 58px;
+    --mobile-gutter: 14px;
+  }
+
+  html,body{
+    width:100%;
+    min-width:0;
+    overflow-x:hidden;
+  }
+
+  body{
+    background:
+      radial-gradient(520px 260px at 50% -10%,rgba(180,245,106,.075),transparent 72%),
+      var(--bg);
+    padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom));
+  }
+
+  body:before{display:none}
+
+  main{
+    width:100%;
+    max-width:none;
+    padding:0 !important;
+    margin:0;
+  }
+
+  /* App-like fixed header */
+  #app>.topbar{
+    position:sticky;
+    top:0;
+    z-index:80;
+    width:100%;
+    min-height:var(--mobile-top-h);
+    margin:0 !important;
+    padding:10px var(--mobile-gutter) !important;
+    border-radius:0 0 16px 16px;
+    border-left:0;
+    border-right:0;
+    background:rgba(10,13,17,.92);
+    backdrop-filter:blur(22px) saturate(150%);
+    -webkit-backdrop-filter:blur(22px) saturate(150%);
+    box-shadow:0 8px 28px rgba(0,0,0,.22);
+  }
+
+  #app>.topbar .brand{
+    gap:9px;
+  }
+
+  #app>.topbar .brand-mark{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+  }
+
+  #app>.topbar .brand h1{
+    font-size:18px;
+    letter-spacing:-.035em;
+  }
+
+  #app>.topbar .brand p,
+  #app>.topbar #status{
+    display:none;
+  }
+
+  #app>.topbar .row{
+    margin-left:auto;
+  }
+
+  #app>.topbar #refreshBtn,
+  #app>.topbar #logoutBtn{
+    width:38px;
+    min-height:38px;
+    padding:8px;
+    font-size:0;
+    border-radius:11px;
+  }
+
+  #app>.topbar #refreshBtn:before{
+    content:"↻";
+    font-size:17px;
+  }
+
+  #app>.topbar #logoutBtn:before{
+    content:"⇥";
+    font-size:17px;
+  }
+
+  /* Remove the desktop/sidebar layout completely on mobile. */
+  #app .layout{
+    display:block !important;
+    width:100%;
+    margin:0;
+  }
+
+  #app .content{
+    width:100%;
+    min-width:0;
+    padding:0;
+  }
+
+  /* Existing sidebar becomes a native-app-like bottom tab bar. */
+  #app .sidebar{
+    position:fixed !important;
+    left:0;
+    right:0;
+    bottom:0;
+    top:auto !important;
+    z-index:100;
+    display:flex !important;
+    align-items:stretch;
+    justify-content:flex-start;
+    gap:0 !important;
+    width:100%;
+    height:var(--mobile-nav-h);
+    min-height:var(--mobile-nav-h);
+    margin:0 !important;
+    padding:7px 7px calc(7px + env(safe-area-inset-bottom)) !important;
+    overflow-x:auto;
+    overflow-y:hidden;
+    border:0;
+    border-top:1px solid rgba(255,255,255,.08);
+    border-radius:18px 18px 0 0 !important;
+    background:rgba(10,13,17,.96);
+    backdrop-filter:blur(24px) saturate(160%);
+    -webkit-backdrop-filter:blur(24px) saturate(160%);
+    box-shadow:0 -12px 35px rgba(0,0,0,.34);
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  #app .sidebar::-webkit-scrollbar{display:none}
+
+  #app .sidebar .navbtn{
+    position:relative;
+    flex:0 0 72px !important;
+    width:72px !important;
+    min-width:72px !important;
+    height:58px;
+    min-height:58px;
+    margin:0 !important;
+    padding:6px 4px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:3px !important;
+    border:1px solid transparent;
+    border-radius:13px;
+    background:transparent;
+    box-shadow:none !important;
+    color:var(--muted);
+  }
+
+  #app .sidebar .navbtn:hover{
+    background:rgba(255,255,255,.045);
+    color:var(--text);
+  }
+
+  #app .sidebar .navbtn.active{
+    color:var(--accent);
+    background:rgba(180,245,106,.085);
+    border-color:rgba(180,245,106,.13);
+    box-shadow:none !important;
+  }
+
+  #app .sidebar .navbtn.active:after{
+    content:"";
+    position:absolute;
+    top:3px;
+    left:50%;
+    width:18px;
+    height:2px;
+    transform:translateX(-50%);
+    border-radius:999px;
+    background:var(--accent);
+    box-shadow:0 0 12px rgba(180,245,106,.45);
+  }
+
+  #app .sidebar .nav-icon{
+    width:23px !important;
+    height:23px !important;
+    color:currentColor;
+  }
+
+  #app .sidebar .nav-icon svg{
+    width:21px !important;
+    height:21px !important;
+  }
+
+  #app .sidebar .nav-label{
+    display:block !important;
+    max-width:68px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:9px;
+    line-height:1.1;
+    font-weight:700;
+    letter-spacing:.01em;
+  }
+
+  /* Keep every section full-width and give it breathing room above nav. */
+  #app .section{
+    width:100%;
+    padding:16px var(--mobile-gutter) calc(var(--mobile-nav-h) + 20px);
+  }
+
+  #app .section > .card{
+    width:100%;
+  }
+
+  #app .card{
+    border-radius:17px;
+    padding:15px;
+  }
+
+  #app .section-title{
+    gap:10px;
+  }
+
+  #app .section-title h2{
+    font-size:19px;
+    letter-spacing:-.03em;
+  }
+
+  #app .section-kicker{
+    font-size:10px;
+    letter-spacing:.12em;
+  }
+
+  /* Mobile-friendly control rows. */
+  #app .section-title>.row{
+    width:100%;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:8px;
+  }
+
+  #app .section-title>.row button,
+  #app .section-title>.row select{
+    width:100%;
+    min-height:42px;
+  }
+
+  #app button,
+  #app input,
+  #app select{
+    min-height:42px;
+  }
+
+  #app .stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  #app .stat{
+    min-width:0;
+    padding:13px;
+    border-radius:14px;
+  }
+
+  #app .stat strong{
+    font-size:21px;
+  }
+
+  #app .stat span{
+    font-size:10px;
+  }
+
+  #app .grid2,
+  #app .grid3{
+    grid-template-columns:1fr !important;
+  }
+
+  #app .field{
+    min-width:0;
+  }
+
+  #app .action-row{
+    flex-wrap:wrap;
+  }
+
+  #app .action-row button{
+    flex:1 1 140px;
+  }
+
+  /* Tables remain usable, but never force the whole page wider. */
+  #app .scroll{
+    max-width:100%;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    border-radius:12px;
+  }
+
+  #app .table{
+    min-width:600px;
+  }
+
+  /* Login is a real full-screen mobile entry surface. */
+  #login{
+    min-height:100svh;
+    width:100%;
+    margin:0 !important;
+    border:0;
+    border-radius:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:28px var(--mobile-gutter) !important;
+    background:
+      radial-gradient(420px 260px at 50% 22%,rgba(180,245,106,.075),transparent 70%),
+      var(--bg);
+    box-shadow:none;
+  }
+
+  #login .brand{
+    margin-bottom:8px;
+  }
+
+  #login .login-form,
+  #login form{
+    width:100%;
+  }
+}
+
+/* Very small phones: keep the shell compact without clipping. */
+@media (max-width:380px){
+  :root{--mobile-nav-h:68px}
+
+  #app .sidebar{
+    padding-left:4px !important;
+    padding-right:4px !important;
+  }
+
+  #app .sidebar .navbtn{
+    flex-basis:64px !important;
+    width:64px !important;
+    min-width:64px !important;
+  }
+
+  #app .sidebar .nav-label{
+    font-size:8px;
+  }
+
+  #app .section{
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  #app .stats{
+    gap:7px;
+  }
+
+  #app .stat{
+    padding:11px;
+  }
+}
+
+/* Landscape phones: reclaim vertical space while retaining bottom navigation. */
+@media (max-width:720px) and (orientation:landscape){
+  :root{--mobile-nav-h:62px}
+
+  #app>.topbar{
+    min-height:52px;
+    padding-top:7px !important;
+    padding-bottom:7px !important;
+  }
+
+  #app .sidebar .navbtn{
+    height:50px;
+    min-height:50px;
+  }
+
+  #app .section{
+    padding-top:12px;
+  }
+}
+</style>
+
 </head>
 <body>
 <main>
