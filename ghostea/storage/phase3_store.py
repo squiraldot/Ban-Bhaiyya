@@ -347,6 +347,65 @@ class Phase3Store:
             },
         )
 
+    async def get_user_directory(self, chat_id, limit=100):
+        """Return unique users seen in warnings, moderation logs and reputation."""
+        limit = max(1, min(int(limit), 500))
+        warnings = await self._call(
+            self.db.select,
+            "ghostea_warning_history",
+            {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "500"},
+        )
+        logs = await self._call(
+            self.db.select,
+            "ghostea_moderation_logs",
+            {"chat_id": f"eq.{chat_id}", "order": "created_at.desc", "limit": "500"},
+        )
+        reputation = await self._call(
+            self.db.select,
+            "ghostea_reputation",
+            {"chat_id": f"eq.{chat_id}", "limit": "500"},
+        )
+
+        users = {}
+        def ensure(uid):
+            key = str(uid)
+            if key not in users:
+                users[key] = {
+                    "user_id": int(uid),
+                    "warnings": 0,
+                    "actions": 0,
+                    "reputation": 0,
+                    "last_activity": None,
+                }
+            return users[key]
+
+        for row in warnings:
+            uid = row.get("user_id")
+            if uid is None: continue
+            u=ensure(uid); u["warnings"] += 1
+            ts=row.get("created_at")
+            if ts and (not u["last_activity"] or str(ts)>str(u["last_activity"])):
+                u["last_activity"]=ts
+
+        for row in logs:
+            uid=row.get("user_id")
+            if uid is None: continue
+            u=ensure(uid); u["actions"] += 1
+            ts=row.get("created_at")
+            if ts and (not u["last_activity"] or str(ts)>str(u["last_activity"])):
+                u["last_activity"]=ts
+
+        for row in reputation:
+            uid=row.get("user_id")
+            if uid is None: continue
+            u=ensure(uid); u["reputation"]=int(row.get("score") or 0)
+
+        result=list(users.values())
+        result.sort(key=lambda x: (
+            x["last_activity"] or "", x["warnings"], x["actions"]
+        ), reverse=True)
+        return result[:limit]
+
     async def get_reputation(self, chat_id, user_id):
         rows = await self._call(
             self.db.select,

@@ -241,3 +241,16 @@ Risk levels:
 ```
 
 These scores are advisory indicators for moderators, not proof of wrongdoing.
+
+
+## Phase 13 — Dashboard Data Visibility Fix
+
+Phase 13 fixes the Admin Dashboard Users and Risk Center data flow.
+
+- Users now has a real directory backed by warning history, moderation logs and reputation.
+- Users can be loaded directly from the table instead of manually knowing a Telegram ID.
+- Risk Center is reachable through the Vercel proxy allowlist.
+- Risk service is correctly attached to the dashboard web handler.
+- User profiles continue to show advisory risk.
+- Fixed an HTML section nesting issue between Moderation Logs and Risk Center.
+- Existing moderation behavior is unchanged.
