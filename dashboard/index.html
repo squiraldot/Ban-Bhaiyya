@@ -330,598 +330,226 @@ button.danger:hover{border-color:rgba(255,113,128,.65);background:rgba(255,113,1
 
 
 
-<style id="ghostea-uiux-full-redesign">
+
+
+<style id="ghostea-uiux-final">
 /* ============================================================
-   GHOSTEA ADMIN — FULL UI/UX REDESIGN
-   UI/UX ONLY. Existing HTML structure and JavaScript behavior
-   are intentionally preserved.
+   Ghostea Admin — UI/UX layer
+   Responsive enterprise console + mobile top menu +
+   simple switches + custom dialogs.
    ============================================================ */
-
 :root{
-  --gx-bg:#080b0d;
-  --gx-surface:#0d1215;
-  --gx-surface-2:#11171b;
-  --gx-surface-3:#151c20;
-  --gx-line:rgba(255,255,255,.075);
-  --gx-line-strong:rgba(255,255,255,.12);
-  --gx-text:#eef3ee;
-  --gx-muted:#89958f;
-  --gx-accent:#b8f26d;
-  --gx-accent-strong:#d1ff9a;
-  --gx-accent-soft:rgba(184,242,109,.10);
-  --gx-danger:#ff7777;
-  --gx-warning:#f3c969;
-  --gx-radius:16px;
-  --gx-radius-sm:11px;
-  --gx-shadow:0 18px 55px rgba(0,0,0,.28);
+  --gx-bg:#080b0d;--gx-surface:#0d1215;--gx-surface2:#11171b;
+  --gx-line:rgba(255,255,255,.075);--gx-line2:rgba(255,255,255,.12);
+  --gx-text:#eef3ee;--gx-muted:#87948e;--gx-accent:#b8f26d;
+  --gx-accent2:#d1ff9a;--gx-danger:#ff7777;--gx-warn:#f2ca6b;
 }
-
-/* ---------- Global visual system ---------- */
-html{
-  background:var(--gx-bg);
-  color-scheme:dark;
-  scroll-behavior:smooth;
-}
+html{background:var(--gx-bg);color-scheme:dark}
 body{
-  background:
-    radial-gradient(900px 480px at 70% -10%,rgba(184,242,109,.055),transparent 68%),
-    linear-gradient(180deg,#080b0d 0%,#090d10 100%);
-  color:var(--gx-text);
-  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  letter-spacing:-.008em;
+  background:radial-gradient(900px 500px at 72% -12%,rgba(184,242,109,.055),transparent 68%),var(--gx-bg);
+  color:var(--gx-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
 }
-*{box-sizing:border-box}
 button,input,select,textarea{font:inherit}
-button{transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease}
+button{transition:background .16s ease,border-color .16s ease,transform .12s ease,box-shadow .16s ease}
 button:active{transform:translateY(1px)}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
-  outline:2px solid rgba(184,242,109,.72);
-  outline-offset:2px;
+  outline:2px solid rgba(184,242,109,.72);outline-offset:2px
 }
 
-/* ---------- Login: premium enterprise entry ---------- */
-#login{
-  width:min(430px,calc(100vw - 32px));
-  min-height:0;
-  margin:7vh auto;
-  padding:32px !important;
-  border:1px solid var(--gx-line-strong);
-  border-radius:24px;
-  background:
-    linear-gradient(145deg,rgba(21,28,32,.96),rgba(10,14,17,.98));
-  box-shadow:0 35px 100px rgba(0,0,0,.45),0 0 0 1px rgba(184,242,109,.018);
-}
-#login .brand-mark{
-  box-shadow:0 10px 30px rgba(184,242,109,.12);
-}
-#login input{
-  min-height:46px;
-  border-radius:12px;
-  background:#090d10;
-  border-color:var(--gx-line-strong);
-}
-#login button[type="submit"]{
-  min-height:46px;
-  border-radius:12px;
-  font-weight:800;
-  letter-spacing:-.01em;
-}
-
-/* ---------- App chrome ---------- */
-#app{min-height:100vh}
+/* Desktop shell */
 #app>.topbar{
-  position:sticky;
-  top:0;
-  z-index:70;
-  min-height:66px;
-  padding:12px 22px !important;
-  border-bottom:1px solid var(--gx-line);
-  background:rgba(8,11,13,.88);
-  backdrop-filter:blur(22px) saturate(140%);
-  -webkit-backdrop-filter:blur(22px) saturate(140%);
-  box-shadow:0 8px 35px rgba(0,0,0,.14);
+  position:sticky;top:0;z-index:70;min-height:66px;padding:12px 22px!important;
+  background:rgba(8,11,13,.9);border-bottom:1px solid var(--gx-line);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  box-shadow:0 8px 32px rgba(0,0,0,.14)
 }
-#app>.topbar .brand h1{
-  font-size:18px;
-  font-weight:850;
-  letter-spacing:-.035em;
-}
-#app>.topbar .brand p{
-  color:#74817b;
-  font-size:11px;
-}
-#app>.topbar #status{
-  border:1px solid var(--gx-line);
-  border-radius:999px;
-  padding:6px 10px;
-  background:rgba(255,255,255,.025);
-}
-#app>.topbar button{
-  min-height:38px;
-  border-radius:10px;
-}
+#app>.topbar .brand h1{font-weight:850;letter-spacing:-.035em}
+#app>.topbar .brand p{color:#718079;font-size:11px}
+#app>.topbar #status{border:1px solid var(--gx-line);background:rgba(255,255,255,.025);border-radius:999px;padding:6px 10px}
+#app>.topbar button{min-height:38px;border-radius:10px}
 
-/* ---------- Desktop sidebar ---------- */
-#app .layout{
-  gap:0 !important;
-}
+#app .layout{gap:0!important}
 #app .sidebar{
-  width:226px !important;
-  padding:16px 12px !important;
-  border-right:1px solid var(--gx-line);
-  background:rgba(9,13,15,.82);
-  backdrop-filter:blur(18px);
-  -webkit-backdrop-filter:blur(18px);
+  width:226px!important;padding:16px 12px!important;border-right:1px solid var(--gx-line);
+  background:rgba(9,13,15,.84);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)
 }
 #app .sidebar .navbtn{
-  min-height:43px;
-  margin:2px 0 !important;
-  padding:0 12px !important;
-  border:1px solid transparent;
-  border-radius:12px;
-  background:transparent;
-  color:#89958f;
-  font-weight:700;
+  min-height:43px;margin:2px 0!important;padding:0 12px!important;border:1px solid transparent;
+  border-radius:11px;background:transparent;color:#89958f;font-weight:750
 }
-#app .sidebar .navbtn:hover{
-  color:#dfe8e1;
-  background:rgba(255,255,255,.038);
-}
+#app .sidebar .navbtn:hover{color:#e4ebe5;background:rgba(255,255,255,.04)}
 #app .sidebar .navbtn.active{
-  color:var(--gx-accent-strong);
-  background:linear-gradient(90deg,rgba(184,242,109,.12),rgba(184,242,109,.035));
-  border-color:rgba(184,242,109,.13);
-  box-shadow:inset 2px 0 0 var(--gx-accent);
+  color:var(--gx-accent2);background:linear-gradient(90deg,rgba(184,242,109,.115),rgba(184,242,109,.025));
+  border-color:rgba(184,242,109,.14);box-shadow:inset 2px 0 0 var(--gx-accent)
 }
-#app .sidebar .nav-icon{
-  color:currentColor;
-}
-
-/* ---------- Content ---------- */
-#app .content{
-  min-width:0;
-  max-width:1540px;
-  margin:0 auto;
-  width:100%;
-}
-#app .section{
-  padding:25px clamp(16px,3vw,38px) 38px;
-}
+#app .content{min-width:0;max-width:1540px;width:100%;margin:0 auto}
+#app .section{padding:25px clamp(15px,3vw,38px) 38px}
 #app .card{
-  border:1px solid var(--gx-line);
-  border-radius:var(--gx-radius);
-  background:linear-gradient(145deg,rgba(18,24,28,.92),rgba(11,15,18,.96));
-  box-shadow:var(--gx-shadow);
+  border:1px solid var(--gx-line);border-radius:16px;
+  background:linear-gradient(145deg,rgba(18,24,28,.93),rgba(10,14,17,.97));
+  box-shadow:0 18px 55px rgba(0,0,0,.25)
 }
-#app .section-title{
-  margin-bottom:18px;
-}
-#app .section-title h2{
-  font-size:22px;
-  font-weight:850;
-  letter-spacing:-.04em;
-}
-#app .section-kicker{
-  color:#6f7c76;
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:.15em;
-  text-transform:uppercase;
-}
+#app .section-title h2{font-size:22px;font-weight:850;letter-spacing:-.04em}
+#app .section-kicker{color:#6f7c76;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
 
-/* ---------- KPI/stat cards ---------- */
-#app .stats{
-  gap:10px;
-}
+/* KPI numbers: no circles */
 #app .stat{
-  min-width:0;
-  padding:17px;
-  border:1px solid var(--gx-line);
-  border-radius:14px;
-  background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.012));
-  box-shadow:none;
+  min-width:0;padding:17px;border:1px solid var(--gx-line);border-radius:14px;
+  background:rgba(255,255,255,.018);box-shadow:none
 }
 #app .stat strong{
-  display:block !important;
-  width:auto !important;
-  height:auto !important;
-  min-width:0 !important;
-  min-height:0 !important;
-  padding:0 !important;
-  margin:0 0 7px;
-  border:0 !important;
-  border-radius:0 !important;
-  background:transparent !important;
-  box-shadow:none !important;
-  color:var(--gx-text);
-  font-size:26px;
-  line-height:1;
-  font-weight:850;
-  font-variant-numeric:tabular-nums;
+  display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;
+  margin:0 0 7px;padding:0!important;border:0!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;color:var(--gx-text);
+  font-size:26px;line-height:1;font-weight:850;font-variant-numeric:tabular-nums
 }
-#app .stat span{
-  color:#7e8b85;
-  font-size:11px;
-  font-weight:650;
-}
+#app .stat span{color:#7e8b85;font-size:11px;font-weight:650}
 
-/* ---------- Forms / inputs ---------- */
+/* Inputs and buttons */
 #app input,#app select,#app textarea{
-  border:1px solid var(--gx-line-strong);
-  border-radius:11px;
-  background:#090e11;
-  color:var(--gx-text);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.018);
-}
-#app input:hover,#app select:hover,#app textarea:hover{
-  border-color:rgba(255,255,255,.17);
+  border:1px solid var(--gx-line2);border-radius:10px;background:#090e11;color:var(--gx-text)
 }
 #app input:focus,#app select:focus,#app textarea:focus{
-  border-color:rgba(184,242,109,.48);
-  box-shadow:0 0 0 3px rgba(184,242,109,.07);
+  border-color:rgba(184,242,109,.48);box-shadow:0 0 0 3px rgba(184,242,109,.07)
 }
-
-/* ---------- Buttons ---------- */
 #app button{
-  border:1px solid var(--gx-line-strong);
-  border-radius:10px;
-  background:#141b1f;
-  color:#dce5df;
-  font-weight:750;
+  border:1px solid var(--gx-line2);border-radius:10px;background:#141b1f;color:#dce5df;font-weight:750
 }
-#app button:hover{
-  background:#192125;
-  border-color:rgba(255,255,255,.17);
-}
-#app button.primary,
-#app button[type="submit"]{
-  background:var(--gx-accent);
-  border-color:var(--gx-accent);
-  color:#0b1009;
-  box-shadow:0 7px 24px rgba(184,242,109,.10);
-}
-#app button.primary:hover,
-#app button[type="submit"]:hover{
-  background:var(--gx-accent-strong);
-  box-shadow:0 9px 30px rgba(184,242,109,.15);
-}
-#app button.danger{
-  color:#ffaaaa;
-  background:rgba(255,119,119,.07);
-  border-color:rgba(255,119,119,.20);
-}
+#app button:hover{background:#192125;border-color:rgba(255,255,255,.17)}
+#app button.primary,#app button[type="submit"]{background:var(--gx-accent);color:#0b1009;border-color:var(--gx-accent)}
+#app button.danger{color:#ffaaaa;background:rgba(255,119,119,.07);border-color:rgba(255,119,119,.20)}
 
-/* ---------- Premium switches ---------- */
-#app input[type="checkbox"]{
-  appearance:none;
-  -webkit-appearance:none;
-  width:44px !important;
-  min-width:44px !important;
-  height:24px !important;
-  min-height:24px !important;
-  padding:0 !important;
-  margin:0;
-  position:relative;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius:999px;
-  background:#20282c;
-  cursor:pointer;
-  box-shadow:inset 0 1px 2px rgba(0,0,0,.34);
+/* Simple toggle — intentionally minimal */
+#app .switch{
+  position:relative;width:40px!important;height:22px!important;min-width:40px!important;min-height:22px!important;
+  padding:2px!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:999px!important;
+  background:#2a3237!important;box-shadow:none!important
 }
-#app input[type="checkbox"]::after{
-  content:"";
-  position:absolute;
-  top:3px;
-  left:3px;
-  width:16px;
-  height:16px;
-  border-radius:50%;
-  background:#b9c1bc;
-  box-shadow:0 2px 6px rgba(0,0,0,.4);
-  transition:transform .18s cubic-bezier(.2,.8,.2,1),background .18s ease;
+#app .switch i{
+  display:block;width:16px!important;height:16px!important;border-radius:50%;
+  background:#e9eeea;box-shadow:0 1px 4px rgba(0,0,0,.35);
+  transition:transform .16s ease,background .16s ease
 }
-#app input[type="checkbox"]:checked{
-  background:rgba(184,242,109,.18);
-  border-color:rgba(184,242,109,.52);
-}
-#app input[type="checkbox"]:checked::after{
-  transform:translateX(20px);
-  background:var(--gx-accent);
-  box-shadow:0 0 12px rgba(184,242,109,.28);
-}
+#app .switch.on{background:var(--gx-accent)!important;border-color:var(--gx-accent)!important}
+#app .switch.on i{transform:translateX(16px);background:#0d130c}
+#app .switch:focus-visible{outline:2px solid rgba(184,242,109,.7);outline-offset:3px}
 
-/* ---------- Badges / status pills ---------- */
-#app .badge{
-  border-radius:999px;
-  border:1px solid var(--gx-line-strong);
-  background:rgba(255,255,255,.035);
-  padding:4px 8px;
-  font-size:10px;
-  font-weight:800;
-}
-#app .badge.success{color:#c9f99a;border-color:rgba(184,242,109,.22);background:rgba(184,242,109,.07)}
-#app .badge.warning{color:#f6d98a;border-color:rgba(243,201,105,.22);background:rgba(243,201,105,.06)}
-#app .badge.danger{color:#ffaaaa;border-color:rgba(255,119,119,.22);background:rgba(255,119,119,.06)}
+/* Status pills */
+#app .badge{border-radius:999px;border:1px solid var(--gx-line2);background:rgba(255,255,255,.035);font-weight:800}
+#app .badge.success{color:#c9f99a;background:rgba(184,242,109,.07);border-color:rgba(184,242,109,.22)}
+#app .badge.warning{color:#f6d98a;background:rgba(242,202,107,.06);border-color:rgba(242,202,107,.22)}
+#app .badge.danger{color:#ffaaaa;background:rgba(255,119,119,.06);border-color:rgba(255,119,119,.22)}
 
-/* ---------- Tables ---------- */
-#app .scroll{
-  border:1px solid var(--gx-line);
-  border-radius:13px;
-}
-#app .table{
-  border-collapse:separate;
-  border-spacing:0;
-}
-#app .table th{
-  position:sticky;
-  top:0;
-  z-index:2;
-  background:#10161a;
-  color:#77847e;
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-#app .table td,#app .table th{
-  border-bottom:1px solid rgba(255,255,255,.055);
-  padding:12px 13px;
-}
-#app .table tbody tr:hover td{
-  background:rgba(255,255,255,.022);
-}
+/* Tables */
+#app .scroll{border:1px solid var(--gx-line);border-radius:13px}
+#app .table{border-collapse:separate;border-spacing:0}
+#app .table th{position:sticky;top:0;z-index:2;background:#10161a;color:#77847e;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+#app .table td,#app .table th{border-bottom:1px solid rgba(255,255,255,.055);padding:12px 13px}
+#app .table tbody tr:hover td{background:rgba(255,255,255,.022)}
 
-/* ---------- Custom app modal surfaces ---------- */
+/* Custom dialogs */
 dialog{
-  width:min(480px,calc(100vw - 32px));
-  max-width:480px;
-  padding:0;
-  border:1px solid rgba(255,255,255,.11);
-  border-radius:20px;
-  color:var(--gx-text);
-  background:linear-gradient(145deg,#171e22,#0c1114);
-  box-shadow:0 35px 120px rgba(0,0,0,.62);
+  width:min(480px,calc(100vw - 32px));max-width:480px;padding:0;border:1px solid rgba(255,255,255,.11);
+  border-radius:20px;color:var(--gx-text);background:linear-gradient(145deg,#171e22,#0c1114);
+  box-shadow:0 35px 120px rgba(0,0,0,.62)
 }
-dialog::backdrop{
-  background:rgba(2,5,7,.74);
-  backdrop-filter:blur(13px);
-  -webkit-backdrop-filter:blur(13px);
+dialog::backdrop{background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)}
+.gx-dialog-backdrop{
+  position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  padding:18px;background:rgba(2,5,7,.76);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)
 }
-.ghostea-modal-backdrop{
-  position:fixed;
-  inset:0;
-  z-index:9998;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:18px;
-  background:rgba(2,5,7,.74);
-  backdrop-filter:blur(13px);
-  -webkit-backdrop-filter:blur(13px);
+.gx-dialog{
+  width:min(460px,100%);max-height:calc(100svh - 36px);overflow:auto;
+  border:1px solid rgba(255,255,255,.11);border-radius:20px;
+  background:linear-gradient(145deg,#171e22,#0c1114);box-shadow:0 35px 120px rgba(0,0,0,.62);
+  padding:22px
 }
-.ghostea-modal{
-  width:min(480px,100%);
-  max-height:calc(100svh - 36px);
-  overflow:auto;
-  padding:23px;
-  border:1px solid rgba(255,255,255,.11);
-  border-radius:20px;
-  background:linear-gradient(145deg,#171e22,#0c1114);
-  box-shadow:0 35px 120px rgba(0,0,0,.62);
+.gx-dialog-title{margin:0 0 7px;font-size:19px;font-weight:850;letter-spacing:-.03em}
+.gx-dialog-text{margin:0;color:#8d9993;line-height:1.55;white-space:pre-wrap}
+.gx-dialog-input{
+  width:100%;min-height:44px;margin-top:14px;padding:0 12px;
+  border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#090e11;color:#eef3ee
 }
-.ghostea-modal h2{
-  margin:0 0 7px;
-  font-size:20px;
-  letter-spacing:-.035em;
+.gx-dialog-select{
+  width:100%;min-height:44px;margin-top:14px;padding:0 10px;
+  border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#090e11;color:#eef3ee
 }
-.ghostea-modal p{
-  margin:0;
-  color:#8d9993;
-  line-height:1.55;
-}
-.ghostea-modal-actions{
-  display:flex;
-  justify-content:flex-end;
-  gap:8px;
-  margin-top:22px;
-}
-.ghostea-modal-actions button{
-  min-height:42px;
-  padding:0 16px;
-}
-.ghostea-modal-actions .primary{
-  background:var(--gx-accent);
-  color:#0b1009;
-  border-color:var(--gx-accent);
-}
-.ghostea-modal-actions .danger{
-  color:#ffaaaa;
-  background:rgba(255,119,119,.08);
-  border-color:rgba(255,119,119,.22);
+.gx-dialog-check{display:flex;align-items:center;gap:10px;margin-top:14px;color:#aab5af;font-size:13px}
+.gx-dialog-check input{accent-color:var(--gx-accent)}
+.gx-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:21px}
+.gx-dialog-actions button{min-height:42px;padding:0 15px;border-radius:10px}
+.gx-dialog-actions .gx-primary{background:var(--gx-accent);color:#0b1009;border-color:var(--gx-accent)}
+.gx-dialog-actions .gx-danger{background:rgba(255,119,119,.08);color:#ffaaaa;border-color:rgba(255,119,119,.22)}
+
+@media(max-width:1050px) and (min-width:721px){
+  #app .sidebar{width:82px!important;padding:15px 9px!important}
+  #app .sidebar .navbtn{justify-content:center;padding:0 7px!important}
+  #app .sidebar .nav-label{display:none!important}
+  #app .stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #app .grid2{grid-template-columns:1fr!important}
 }
 
-/* ---------- Mobile = app shell ---------- */
 @media(max-width:720px){
   html,body{min-width:0;overflow-x:hidden}
-  body{
-    background:
-      radial-gradient(500px 250px at 50% -5%,rgba(184,242,109,.065),transparent 72%),
-      var(--gx-bg);
-  }
-
   #app>.topbar{
-    min-height:58px;
-    padding:9px 12px !important;
-    border-radius:0 0 15px 15px;
+    min-height:58px;padding:9px 12px!important;border-radius:0 0 15px 15px
   }
   #app>.topbar .brand-mark{width:34px;height:34px;border-radius:10px}
   #app>.topbar .brand h1{font-size:17px}
   #app>.topbar .brand p,#app>.topbar #status{display:none}
 
-  /* Existing sidebar becomes a TOP horizontal menubar. */
-  #app .layout{display:block !important}
+  /* Mobile top menubar */
+  #app .layout{display:block!important}
   #app .sidebar{
-    position:sticky !important;
-    top:58px !important;
-    z-index:65;
-    display:flex !important;
-    width:100% !important;
-    height:55px !important;
-    min-height:55px !important;
-    padding:7px 8px !important;
-    gap:5px !important;
-    overflow-x:auto !important;
-    overflow-y:hidden !important;
-    border:0 !important;
-    border-bottom:1px solid var(--gx-line) !important;
-    border-radius:0 0 14px 14px !important;
-    background:rgba(10,14,17,.94) !important;
-    box-shadow:0 7px 25px rgba(0,0,0,.18) !important;
-    scrollbar-width:none;
+    position:sticky!important;top:58px!important;z-index:65;
+    display:flex!important;width:100%!important;height:55px!important;min-height:55px!important;
+    padding:7px 8px!important;gap:5px!important;overflow-x:auto!important;overflow-y:hidden!important;
+    border:0!important;border-bottom:1px solid var(--gx-line)!important;border-radius:0 0 14px 14px!important;
+    background:rgba(10,14,17,.95)!important;box-shadow:0 7px 25px rgba(0,0,0,.18)!important;
+    scrollbar-width:none
   }
   #app .sidebar::-webkit-scrollbar{display:none}
   #app .sidebar .navbtn{
-    flex:0 0 auto !important;
-    width:auto !important;
-    min-width:max-content !important;
-    height:40px !important;
-    min-height:40px !important;
-    margin:0 !important;
-    padding:0 12px !important;
-    display:inline-flex !important;
-    flex-direction:row !important;
-    align-items:center !important;
-    gap:7px !important;
-    border:1px solid transparent !important;
-    border-radius:10px !important;
-    box-shadow:none !important;
-    white-space:nowrap;
+    flex:0 0 auto!important;width:auto!important;min-width:max-content!important;
+    height:40px!important;min-height:40px!important;margin:0!important;padding:0 12px!important;
+    display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:7px!important;
+    border:1px solid transparent!important;border-radius:10px!important;white-space:nowrap
   }
-  #app .sidebar .navbtn.active{
-    box-shadow:inset 0 -2px 0 var(--gx-accent) !important;
-  }
-  #app .sidebar .nav-label{
-    display:block !important;
-    font-size:11px !important;
-    max-width:none !important;
-    white-space:nowrap !important;
-  }
-  #app .sidebar .nav-icon,#app .sidebar .nav-icon svg{
-    width:18px !important;height:18px !important;
-  }
-
+  #app .sidebar .navbtn.active{box-shadow:inset 0 -2px 0 var(--gx-accent)!important}
+  #app .sidebar .nav-label{display:block!important;max-width:none!important;font-size:11px!important;white-space:nowrap!important}
+  #app .sidebar .nav-icon,#app .sidebar .nav-icon svg{width:18px!important;height:18px!important}
   #app .content{width:100%;max-width:none}
-  #app .section{
-    padding:15px 12px 24px !important;
-  }
-  #app .card{
-    border-radius:15px;
-    box-shadow:0 12px 35px rgba(0,0,0,.20);
-  }
-  #app .section-title{
-    align-items:flex-start;
-    flex-wrap:wrap;
-    margin-bottom:14px;
-  }
-  #app .section-title h2{font-size:19px}
-  #app .stats{
-    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
-    gap:8px;
-  }
+  #app .section{padding:15px 12px 24px!important}
+  #app .card{border-radius:15px;box-shadow:0 12px 35px rgba(0,0,0,.20)}
+  #app .stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px}
   #app .stat{padding:14px}
   #app .stat strong{font-size:21px}
-  #app .grid2,#app .grid3{grid-template-columns:1fr !important}
-
-  #app .section-title>.row{
-    width:100%;
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:7px;
-  }
+  #app .grid2,#app .grid3{grid-template-columns:1fr!important}
+  #app .section-title>.row{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:7px}
   #app .section-title>.row>*{width:100%}
-  #app .action-row{flex-wrap:wrap}
-  #app .action-row>*{flex:1 1 130px}
-
-  #app .scroll{
-    max-width:100%;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-  }
+  #app .scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
   #app .table{min-width:620px}
-
-  #login{
-    width:100%;
-    min-height:100svh;
-    margin:0 !important;
-    border:0;
-    border-radius:0;
-    padding:26px 16px !important;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    box-shadow:none;
-  }
-
-  .ghostea-modal-backdrop{
-    align-items:flex-end;
-    padding:0;
-  }
-  .ghostea-modal{
-    width:100%;
-    max-height:90svh;
-    padding:20px 16px calc(18px + env(safe-area-inset-bottom));
-    border-radius:22px 22px 0 0;
-  }
-  .ghostea-modal-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-  }
-  .ghostea-modal-actions button{width:100%}
+  #login{width:100%;min-height:100svh;margin:0!important;border:0;border-radius:0;padding:26px 16px!important;display:flex;flex-direction:column;justify-content:center;box-shadow:none}
+  .gx-dialog-backdrop{align-items:flex-end;padding:0}
+  .gx-dialog{width:100%;max-height:90svh;padding:20px 16px calc(18px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0}
+  .gx-dialog-actions{display:grid;grid-template-columns:1fr 1fr}
+  .gx-dialog-actions button{width:100%}
 }
-
-/* ---------- Tablet ---------- */
-@media(min-width:721px) and (max-width:1050px){
-  #app .sidebar{width:82px !important;padding:15px 9px !important}
-  #app .sidebar .navbtn{
-    justify-content:center;
-    padding:0 7px !important;
-  }
-  #app .sidebar .nav-label{display:none !important}
-  #app .sidebar .nav-icon,#app .sidebar .nav-icon svg{width:20px;height:20px}
-  #app .section{padding:21px 20px 30px}
-  #app .stats{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
-  #app .grid2{grid-template-columns:1fr !important}
-}
-
-/* ---------- Small phones ---------- */
 @media(max-width:380px){
-  #app>.topbar{padding-left:9px !important;padding-right:9px !important}
-  #app .sidebar .navbtn{padding:0 9px !important}
-  #app .sidebar .nav-label{font-size:10px !important}
-  #app .section{padding-left:9px !important;padding-right:9px !important}
+  #app>.topbar{padding-left:9px!important;padding-right:9px!important}
+  #app .sidebar .navbtn{padding:0 9px!important}
+  #app .sidebar .nav-label{font-size:10px!important}
+  #app .section{padding-left:9px!important;padding-right:9px!important}
   #app .stats{gap:7px}
   #app .stat{padding:12px}
   #app .stat strong{font-size:19px}
 }
-
-/* ---------- Landscape phones ---------- */
 @media(max-width:720px) and (orientation:landscape){
-  #app .sidebar{
-    height:50px !important;
-    min-height:50px !important;
-  }
-  #app .sidebar .navbtn{height:36px !important;min-height:36px !important}
-  #app .section{padding-top:12px !important}
+  #app .sidebar{height:50px!important;min-height:50px!important}
+  #app .sidebar .navbtn{height:36px!important;min-height:36px!important}
 }
-
-/* ---------- Reduced motion ---------- */
 @media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{
-    scroll-behavior:auto !important;
-    transition-duration:.01ms !important;
-    animation-duration:.01ms !important;
-    animation-iteration-count:1 !important;
-  }
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}
 }
 </style>
 
@@ -1120,7 +748,7 @@ function renderBars(id,obj){const root=$(id);root.innerHTML='';const entries=Obj
 async function loadLogs(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/logs?limit=100');const rows=d.logs||[];$('logRows').innerHTML=rows.map(r=>`<tr><td>${esc(r.created_at||'—')}</td><td>${esc(r.user_id||'—')}</td><td><span class="badge">${esc(r.action)}</span></td><td>${esc(r.reason||'—')}</td><td>${esc(r.details||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No moderation logs.</td></tr>';$('logsMessage').textContent='Group '+selectedGroup}catch(e){$('logsMessage').textContent='❌ '+e.message}}
 async function loadFilters(){if(!selectedGroup)return;try{const d=await api('/api/groups/'+selectedGroup+'/filters');$('filterRows').innerHTML=(d.filters||[]).map(r=>`<tr><td>${esc(r.filter_type)}</td><td>${esc(r.value)}</td><td><button class="danger deleteFilter" data-id="${esc(r.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="3" class="muted">No custom filters.</td></tr>';document.querySelectorAll('.deleteFilter').forEach(b=>b.onclick=()=>deleteFilter(b.dataset.id))}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 async function addFilter(){if(!selectedGroup){$('filterMessage').textContent='Select a group first.';return}const type=$('filterType').value,value=$('filterValue').value.trim();if(!value){$('filterMessage').textContent='Enter a filter value.';return}try{await api('/api/groups/'+selectedGroup+'/filters',{method:'POST',body:JSON.stringify({filter_type:type,value})});$('filterValue').value='';$('filterMessage').textContent='✅ Filter added';await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
-async function deleteFilter(id){if(!confirm('Delete this custom filter?'))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
+async function deleteFilter(id){if(!await gxConfirm('Delete this custom filter?',{title:'Delete filter',ok:'Delete',danger:true}))return;try{await api('/api/groups/'+selectedGroup+'/filters/'+id,{method:'DELETE'});await loadFilters()}catch(e){$('filterMessage').textContent='❌ '+e.message}}
 $('loginBtn').onclick=async()=>{ $('loginError').textContent='';try{const r=await fetch('/api/ghostea?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Login failed');$('password').value='';showApp(d.admin)}catch(e){$('loginError').textContent='❌ '+e.message}};
 $('username').addEventListener('keydown',e=>{if(e.key==='Enter')$('password').focus()});$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});$('logoutBtn').onclick=async()=>{await fetch('/api/ghostea?action=logout',{method:'POST'});showLogin()};$('adminsRefresh').onclick=loadAdmins;$('createAdmin').onclick=createAdmin;$('refreshBtn').onclick=loadGroups;$('riskRefresh').onclick=loadRisk;$('usersRefresh').onclick=loadUsers;$('overviewRefresh').onclick=loadGroups;$('saveSettings').onclick=saveSettings;$('analyticsRefresh').onclick=loadAnalytics;$('logsRefresh').onclick=loadLogs;$('filtersRefresh').onclick=loadFilters;$('addFilter').onclick=addFilter;$('loadUser').onclick=loadUser;document.querySelectorAll('[data-user-action]').forEach(b=>b.onclick=()=>userAction(b.dataset.userAction));
 document.querySelectorAll('.navbtn').forEach(b=>b.onclick=async()=>{document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(b.dataset.section).classList.add('active');if(b.dataset.section==='users')await loadUsers();if(b.dataset.section==='risk')await loadRisk();if(b.dataset.section==='admins')await loadAdmins()});
@@ -1134,16 +762,16 @@ async function loadAdmins(){
   }catch(e){$('adminsMessage').textContent='❌ '+e.message}
 }
 async function editAdmin(id){
-  const role=prompt('New role: super_admin, admin, moderator, viewer');
+  const role=await gxPrompt('Choose the role for this administrator.', 'admin', {title:'Edit administrator role', type:'select', options:[{value:'super_admin',label:'Super Admin'},{value:'admin',label:'Admin'},{value:'moderator',label:'Moderator'},{value:'viewer',label:'Viewer'}]});
   if(!role)return;
-  const enabled=confirm('Keep this admin enabled?');
-  const password=prompt('New password (leave blank to keep current):');
+  const enabled=await gxConfirm('Keep this administrator enabled?',{title:'Administrator status',ok:'Keep enabled'});
+  const password=await gxPrompt('Leave blank to keep the current password.', '', {title:'Update password', type:'password', placeholder:'New password (optional)'});
   const body={role,enabled};
   if(password)body.password=password;
   try{await api('/api/auth/admins/'+id,{method:'PATCH',body:JSON.stringify(body)});$('adminsMessage').textContent='✅ Admin updated';await loadAdmins()}catch(e){$('adminsMessage').textContent='❌ '+e.message}
 }
 async function deleteAdmin(id){
-  if(!confirm('Delete this dashboard admin?'))return;
+  if(!await gxConfirm('Delete this dashboard admin?',{title:'Delete administrator',ok:'Delete',danger:true}))return;
   try{await api('/api/auth/admins/'+id,{method:'DELETE'});$('adminsMessage').textContent='✅ Admin deleted';await loadAdmins()}catch(e){$('adminsMessage').textContent='❌ '+e.message}
 }
 async function createAdmin(){
@@ -1213,8 +841,8 @@ async function userAction(action){
   if(!selectedGroup){$('userMessage').textContent='Select a group first.';return}
   const id=$('userId').value.trim();
   if(!/^-?\d+$/.test(id)){ $('userMessage').textContent='Enter a numeric Telegram user ID.'; return }
-  if((action==='ban') && !confirm('Permanently ban this user?'))return;
-  if((action==='reset_warnings') && !confirm('Reset all warnings for this user?'))return;
+  if((action==='ban') && !(await gxConfirm('Permanently ban this user?',{title:'Permanent ban',ok:'Ban user',danger:true})))return;
+  if((action==='reset_warnings') && !(await gxConfirm('Reset all warnings for this user?',{title:'Reset warnings',ok:'Reset',danger:true})))return;
   try{
     const body={user_id:Number(id),action,reason:$('userReason').value.trim(),minutes:Number($('userMinutes').value||10)};
     await api('/api/groups/'+selectedGroup+'/users',{method:'POST',body:JSON.stringify(body)});
@@ -1225,6 +853,57 @@ async function userAction(action){
 }
 
 </script>
+
+<script id="ghostea-custom-dialog-ui">
+/* UI-only dialog layer. Replaces native browser confirm/prompt visuals. */
+(()=>{
+  const escHtml=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const base=(title,message,body,actions)=>{
+    const b=document.createElement('div');
+    b.className='gx-dialog-backdrop';
+    b.innerHTML=`<div class="gx-dialog" role="dialog" aria-modal="true" aria-labelledby="gx-title">
+      <h2 id="gx-title" class="gx-dialog-title">${escHtml(title)}</h2>
+      <p class="gx-dialog-text">${escHtml(message)}</p>
+      ${body||''}
+      <div class="gx-dialog-actions">${actions}</div>
+    </div>`;
+    document.body.appendChild(b);
+    const box=b.querySelector('.gx-dialog');
+    const first=box.querySelector('input,select,button');
+    if(first) setTimeout(()=>first.focus(),0);
+    const close=()=>{b.remove();};
+    b.addEventListener('click',e=>{if(e.target===b)close()});
+    box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close()}});
+    return {b,box,close};
+  };
+  window.gxConfirm=(message,opts={})=>new Promise(resolve=>{
+    const danger=opts.danger?'gx-danger':'';
+    const d=base(opts.title||'Confirm action',message,'',
+      `<button type="button" data-cancel>Cancel</button><button type="button" class="${danger||'gx-primary'}" data-ok>${escHtml(opts.ok||'Continue')}</button>`);
+    d.box.querySelector('[data-cancel]').onclick=()=>{d.close();resolve(false)};
+    d.box.querySelector('[data-ok]').onclick=()=>{d.close();resolve(true)};
+  });
+  window.gxPrompt=(message,defaultValue='',opts={})=>new Promise(resolve=>{
+    const body=opts.type==='select'
+      ? `<select class="gx-dialog-select" data-value>${(opts.options||[]).map(x=>`<option value="${escHtml(x.value)}">${escHtml(x.label)}</option>`).join('')}</select>`
+      : `<input class="gx-dialog-input" data-value type="${opts.type==='password'?'password':'text'}" value="${escHtml(defaultValue)}" placeholder="${escHtml(opts.placeholder||'')}">`;
+    const d=base(opts.title||'Enter value',message,body,
+      `<button type="button" data-cancel>Cancel</button><button type="button" class="gx-primary" data-ok>${escHtml(opts.ok||'Save')}</button>`);
+    const value=d.box.querySelector('[data-value]');
+    if(opts.type==='select' && defaultValue) value.value=defaultValue;
+    const submit=()=>{const v=value.value.trim();d.close();resolve(v)};
+    d.box.querySelector('[data-cancel]').onclick=()=>{d.close();resolve(null)};
+    d.box.querySelector('[data-ok]').onclick=submit;
+    value.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit()}});
+  });
+  window.gxAlert=(message,opts={})=>new Promise(resolve=>{
+    const d=base(opts.title||'Notice',message,'',
+      `<button type="button" class="gx-primary" data-ok>${escHtml(opts.ok||'OK')}</button>`);
+    d.box.querySelector('[data-ok]').onclick=()=>{d.close();resolve(true)};
+  });
+})();
+</script>
+
 </body>
 </html>
 
