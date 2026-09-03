@@ -116,6 +116,53 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     cls._rate.pop(stale_key, None)
             return False
 
+    def do_HEAD(self):
+        """Handle HEAD health checks used by monitors such as UptimeRobot.
+
+        HEAD must return the same status/headers as GET without a response
+        body. /health is intentionally public, so monitoring does not require
+        dashboard authentication or the protected API key.
+        """
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path == "/health":
+            # Build the same health response headers as GET, but do not write
+            # the JSON body. This makes UptimeRobot's default HEAD monitor
+            # receive a clean 200 instead of BaseHTTPRequestHandler's 501.
+            body = json.dumps({
+                "ok": True,
+                "service": "ghostea",
+                "status": "running",
+            }).encode("utf-8")
+            origin = _configured_origin()
+            request_origin = self.headers.get("Origin", "").strip().rstrip("/")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Frame-Options", "DENY")
+            if origin and request_origin == origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
+            self.send_header(
+                "Access-Control-Allow-Headers",
+                "Authorization, Content-Type",
+            )
+            self.send_header(
+                "Access-Control-Allow-Methods",
+                "GET, HEAD, PATCH, POST, DELETE, OPTIONS",
+            )
+            self.end_headers()
+            return
+
+        # Keep unsupported HEAD endpoints consistent with the existing server
+        # behavior rather than accidentally exposing protected API routes.
+        self.send_error(501, "Unsupported HEAD endpoint")
+
     def do_OPTIONS(self):
         _json(self, 204, {})
 
